@@ -250,19 +250,46 @@ async function importOverlayFromJSON(jsonText: string) {
   }
   const arr = Array.isArray(obj) ? obj : [obj];
   let imported = 0, failed = 0;
+  let shouldOverride = null;
   for (const item of arr) {
-    const name = uniqueName(item.name || 'Imported Overlay', config.overlays.map(o => o.name || ''));
-    const imageUrl = item.imageUrl;
-    const pixelUrl = item.pixelUrl ?? null;
-    const offsetX = Number.isFinite(item.offsetX) ? item.offsetX : 0;
-    const offsetY = Number.isFinite(item.offsetY) ? item.offsetY : 0;
-    const opacity = Number.isFinite(item.opacity) ? item.opacity : 0.7;
-    if (!imageUrl) { failed++; continue; }
-    try {
-      const base64 = await urlToDataURL(imageUrl);
-      const ov = { id: uid(), name, enabled: true, imageUrl, imageBase64: base64, isLocal: false, pixelUrl, offsetX, offsetY, opacity };
-      config.overlays.push(ov); imported++;
-    } catch (e) { console.error('Import failed for', imageUrl, e); failed++; }
+    const override = shouldOverride === false ? undefined : config.overlays.find(x => x.name.toLowerCase() === item.name.toLowerCase());
+    if (shouldOverride === null && override) {
+      shouldOverride = confirm('Some imported overlays have names that are already in use.\n\nOK to override overlays with overlapping names.\nCancel to rename imported overlays.');
+    }
+    if (override && shouldOverride) {
+      if (item.imageUrl !== undefined) {
+        try {
+          const base64 = await urlToDataURL(item.imageUrl);
+          override.imageUrl = item.imageUrl;
+          override.imageBase64 = base64;
+          override.isLocal = false;
+        }
+        catch (e) {
+          console.error('Import failed for', item.imageUrl, e);
+          failed++;
+          continue;
+        }
+      }
+      override.pixelUrl = item.pixelUrl !== undefined ? item.pixelUrl : override.pixelUrl;
+      override.offsetX = item.offsetX !== undefined ? item.offsetX : override.offsetX;
+      override.offsetY = item.offsetY !== undefined ? item.offsetY : override.offsetY;
+      override.opacity = item.opacity !== undefined ? item.opacity : override.opacity;
+      imported++;
+    }
+    else {
+      const name = uniqueName(item.name || 'Imported Overlay', config.overlays.map(o => o.name || ''));
+      const imageUrl = item.imageUrl;
+      const pixelUrl = item.pixelUrl ?? null;
+      const offsetX = Number.isFinite(item.offsetX) ? item.offsetX : 0;
+      const offsetY = Number.isFinite(item.offsetY) ? item.offsetY : 0;
+      const opacity = Number.isFinite(item.opacity) ? item.opacity : 0.7;
+      if (!imageUrl) { failed++; continue; }
+      try {
+        const base64 = await urlToDataURL(imageUrl);
+        const ov = { id: uid(), name, enabled: true, imageUrl, imageBase64: base64, isLocal: false, pixelUrl, offsetX, offsetY, opacity };
+        config.overlays.push(ov); imported++;
+      } catch (e) { console.error('Import failed for', imageUrl, e); failed++; }
+    }
   }
   if (imported > 0) {
     config.activeOverlayId = config.overlays[config.overlays.length - 1].id;
