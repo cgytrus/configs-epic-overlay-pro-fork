@@ -3,7 +3,7 @@ import { config, saveConfig, getActiveOverlay, applyTheme } from '../core/store'
 import { ensureHook } from '../core/hook';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
-import { urlToDataURL, fileToDataURL } from '../core/gm';
+import { urlToDataURL, fileToDataURL, gmFetchJson } from '../core/gm';
 import { uniqueName, uid } from '../core/util';
 import { extractPixelCoords } from '../core/overlay';
 import { buildCCModal, openCCModal } from './ccModal';
@@ -235,7 +235,19 @@ async function setOverlayImageFromFile(ov: any, file: File) {
 }
 
 async function importOverlayFromJSON(jsonText: string) {
-  let obj; try { obj = JSON.parse(jsonText); } catch { alert('Invalid JSON'); return; }
+  let obj;
+  try {
+    obj = JSON.parse(jsonText);
+  }
+  catch {
+    try {
+      obj = await gmFetchJson(jsonText);
+    }
+    catch {
+      alert('Invalid JSON or link');
+      return;
+    }
+  }
   const arr = Array.isArray(obj) ? obj : [obj];
   let imported = 0, failed = 0;
   for (const item of arr) {
@@ -296,7 +308,7 @@ function addEventListeners(panel: HTMLDivElement) {
   $('op-autocap-toggle').addEventListener('click', () => { config.autoCapturePixelUrl = !config.autoCapturePixelUrl; saveConfig(['autoCapturePixelUrl']); ensureHook(); updateUI(); });
 
   $('op-add-overlay').addEventListener('click', async () => { try { await addBlankOverlay(); } catch (e) { console.error(e); } });
-  $('op-import-overlay').addEventListener('click', async () => { const text = prompt('Paste overlay JSON (single or array):'); if (!text) return; await importOverlayFromJSON(text); });
+  $('op-import-overlay').addEventListener('click', async () => { const text = prompt('Paste overlay JSON (single or array) or link:'); if (!text) return; await importOverlayFromJSON(text); });
   $('op-export-overlay').addEventListener('click', () => exportActiveOverlayToClipboard());
   $('op-collapse-list').addEventListener('click', () => { config.collapseList = !config.collapseList; saveConfig(['collapseList']); updateUI(); });
   $('op-collapse-editor').addEventListener('click', () => { config.collapseEditor = !config.collapseEditor; saveConfig(['collapseEditor']); updateUI(); });

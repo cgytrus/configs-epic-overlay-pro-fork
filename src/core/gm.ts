@@ -34,6 +34,24 @@ export function gmFetchBlob(url: string): Promise<Blob> {
   });
 }
 
+export function gmFetchJson(url: string): Promise<object> {
+  return new Promise((resolve, reject) => {
+    try {
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url,
+        responseType: 'json',
+        onload: (res) => {
+          if (res.status >= 200 && res.status < 300 && res.response) resolve(res.response);
+          else reject(new Error(`GM_xhr failed: ${res.status} ${res.statusText}`));
+        },
+        onerror: () => reject(new Error('GM_xhr network error')),
+        ontimeout: () => reject(new Error('GM_xhr timeout')),
+      });
+    } catch (e) { reject(e); }
+  });
+}
+
 export function blobToDataURL(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
     const fr = new FileReader();
