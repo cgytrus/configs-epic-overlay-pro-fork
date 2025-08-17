@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEV = process.argv.includes('--watch');
-const outFile = resolve(__dirname, 'dist', 'Wplace Overlay Pro.user.js');
+const outFile = resolve(__dirname, 'dist', 'configs-epic-overlay-pro-fork.user.js');
 const metaPath = resolve(__dirname, 'src', 'meta.js');
 
 // Plugin: prepend metadata banner after each build
