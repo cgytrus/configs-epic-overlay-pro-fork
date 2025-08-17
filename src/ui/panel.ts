@@ -275,7 +275,15 @@ function exportActiveOverlayToClipboard() {
   const ov = getActiveOverlay();
   if (!ov) { alert('No active overlay selected.'); return; }
   if (ov.isLocal || !ov.imageUrl) { alert('This overlay uses a local image and cannot be exported. Please host the image and set an image URL.'); return; }
-  const payload = { version: 1, name: ov.name, imageUrl: ov.imageUrl, pixelUrl: ov.pixelUrl ?? null, offsetX: ov.offsetX, offsetY: ov.offsetY, opacity: ov.opacity };
+  const payload = {
+    version: 1,
+    name: ov.name,
+    imageUrl: ov.imageUrl,
+    pixelUrl: ov.pixelUrl ?? null,
+    offsetX: ov.offsetX == 0 ? undefined : ov.offsetX,
+    offsetY: ov.offsetY == 0 ? undefined : ov.offsetY,
+    opacity: ov.opacity == 0.7 ? undefined : ov.opacity
+  };
   const text = JSON.stringify(payload, null, 2);
   copyText(text).then(() => alert('Overlay JSON copied to clipboard!')).catch(() => { prompt('Copy the JSON below:', text); });
 }
