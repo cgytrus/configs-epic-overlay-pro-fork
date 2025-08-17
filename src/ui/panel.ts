@@ -273,7 +273,7 @@ function copyText(text: string) {
 }
 
 function addEventListeners(panel: HTMLDivElement) {
-  $('op-theme-toggle').addEventListener('click', async (e) => { e.stopPropagation(); config.theme = config.theme === 'light' ? 'dark' : 'light'; await saveConfig(['theme']); applyTheme(); });
+  $('op-theme-toggle').addEventListener('click', async (e) => { e.stopPropagation(); config.theme = config.theme === 'light' ? 'dark' : 'light'; await saveConfig(['theme']); applyTheme(); updateThemeToggle(); });
   $('op-refresh-btn').addEventListener('click', (e) => { e.stopPropagation(); location.reload(); });
   $('op-panel-toggle').addEventListener('click', (e) => { e.stopPropagation(); config.isPanelCollapsed = !config.isPanelCollapsed; saveConfig(['isPanelCollapsed']); updateUI(); });
 
@@ -469,10 +469,16 @@ function updateEditorUI() {
   if (chevron) chevron.textContent = config.collapseEditor ? '▸' : '▾';
 }
 
+export function updateThemeToggle() {
+  const themeToggle = document.getElementById('op-theme-toggle');
+  themeToggle.textContent = config.theme === 'dark' ? '☀️' : '🌙';
+}
+
 export function updateUI() {
   if (!panelEl) return;
 
   applyTheme();
+  updateThemeToggle();
 
   const content = $('op-content');
   const toggle = $('op-panel-toggle');
