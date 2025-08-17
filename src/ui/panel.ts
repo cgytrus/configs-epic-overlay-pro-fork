@@ -92,7 +92,7 @@ export function createUI() {
             </div>
         </div>
 
-        <div class="op-section resizable">
+        <div class="op-section">
           <div class="op-section-title">
             <div class="op-title-left">
               <span class="op-title-text">Overlays</span>
@@ -107,7 +107,7 @@ export function createUI() {
             </div>
           </div>
           <div id="op-list-wrap">
-            <div class="op-list" id="op-overlay-list"></div>
+            <div class="op-list resizable" id="op-overlay-list"></div>
           </div>
         </div>
 
