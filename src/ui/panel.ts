@@ -482,10 +482,12 @@ export function updateUI() {
 
   const content = $('op-content');
   const toggle = $('op-panel-toggle');
+  const header = $('op-header');
   const collapsed = !!config.isPanelCollapsed;
   content.style.display = collapsed ? 'none' : 'flex';
   toggle.textContent = collapsed ? '▸' : '▾';
   toggle.title = collapsed ? 'Expand' : 'Collapse';
+  header.style = collapsed ? 'border-bottom: none;' : undefined;
 
   // --- Mode Tabs ---
   panelEl.querySelectorAll('.op-tab-btn').forEach(btn => {
