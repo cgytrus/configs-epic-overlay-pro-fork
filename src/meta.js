@@ -14,4 +14,6 @@
 // @grant        unsafeWindow
 // @connect      *
 // @run-at       document-start
+// @downloadURL  https://github.com/cgytrus/Wplace-Overlay-Pro/releases/download/development/configs-epic-overlay-pro-fork.user.js
+// @updateURL    https://github.com/cgytrus/Wplace-Overlay-Pro/releases/download/development/configs-epic-overlay-pro-fork.user.js
 // ==/UserScript==
