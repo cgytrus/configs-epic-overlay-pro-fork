@@ -36,12 +36,16 @@ export function createUI() {
         </div>
       </div>
       <div class="op-content" id="op-content">
-        <div class="op-section">
+        <div class="op-section" id="op-mode-section">
           <div class="op-section-title">
             <div class="op-title-left">
               <span class="op-title-text">Mode</span>
             </div>
+            <div class="op-title-right">
+              <button class="op-chevron" id="op-collapse-mode" title="Collapse/Expand">▾</button>
+            </div>
           </div>
+          <div id="op-mode-body">
           <div class="op-row op-tabs">
             <button class="op-tab-btn" data-mode="above">Full Overlay</button>
             <button class="op-tab-btn" data-mode="minify">Mini-pixel</button>
@@ -56,6 +60,7 @@ export function createUI() {
               <div class="op-row"><label>Style</label>
                 <div class="op-row"><input type="radio" name="minify-style" value="dots" id="op-style-dots"><label for="op-style-dots">Dots</label></div>
                 <div class="op-row"><input type="radio" name="minify-style" value="symbols" id="op-style-symbols"><label for="op-style-symbols">Symbols (slow and buggy, wait 4 fix!)</label></div>
+                </div>
               </div>
             </div>
           </div>
@@ -345,6 +350,7 @@ function addEventListeners(panel: HTMLDivElement) {
   $('op-add-overlay').addEventListener('click', async () => { try { await addBlankOverlay(); } catch (e) { console.error(e); } });
   $('op-import-overlay').addEventListener('click', async () => { const text = prompt('Paste overlay JSON (single or array) or link:'); if (!text) return; await importOverlayFromJSON(text); });
   $('op-export-overlay').addEventListener('click', () => exportActiveOverlayToClipboard());
+  $('op-collapse-mode').addEventListener('click', () => { config.collapseMode = !config.collapseMode; saveConfig(['collapseMode']); updateUI(); });
   $('op-collapse-list').addEventListener('click', () => { config.collapseList = !config.collapseList; saveConfig(['collapseList']); updateUI(); });
   $('op-collapse-editor').addEventListener('click', () => { config.collapseEditor = !config.collapseEditor; saveConfig(['collapseEditor']); updateUI(); });
   $('op-collapse-positioning').addEventListener('click', () => { config.collapsePositioning = !config.collapsePositioning; saveConfig(['collapsePositioning']); updateUI(); });
@@ -547,6 +553,11 @@ export function updateUI() {
     }
     btn.classList.toggle('active', isActive);
   });
+
+  const modeBody = $('op-mode-body');
+  const modeCz = $('op-collapse-mode');
+  if (modeBody) modeBody.style.display = config.collapseMode ? 'none' : 'block';
+  if (modeCz) modeCz.textContent = config.collapseMode ? '▸' : '▾';
 
   // --- Mode Settings ---
   const fullOverlaySettings = $('op-mode-settings').querySelector('[data-setting="above"]') as HTMLDivElement;
