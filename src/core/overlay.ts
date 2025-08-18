@@ -13,8 +13,11 @@ ALL_COLORS.forEach((c, i) => colorIndexMap.set(c.join(','), i));
 const LUT_SIZE = 32; // 32x32x32 = 32KB
 const LUT_SHIFT = 8 - Math.log2(LUT_SIZE); // 3 for 32x32x32
 const colorLUT = new Uint8Array(LUT_SIZE * LUT_SIZE * LUT_SIZE);
+let colorLutBuilt = false;
 
 function buildColorLUT() {
+  if (colorLutBuilt)
+    return;
   for (let r = 0; r < LUT_SIZE; r++) {
     for (let g = 0; g < LUT_SIZE; g++) {
       for (let b = 0; b < LUT_SIZE; b++) {
@@ -26,16 +29,16 @@ function buildColorLUT() {
       }
     }
   }
+  colorLutBuilt = true;
 }
 
 function findColorIndexLUT(r: number, g: number, b: number): number {
+  buildColorLUT();
   const lutR = r >> LUT_SHIFT;
   const lutG = g >> LUT_SHIFT;
   const lutB = b >> LUT_SHIFT;
   return colorLUT[lutR * LUT_SIZE * LUT_SIZE + lutG * LUT_SIZE + lutB];
 }
-
-buildColorLUT();
 
 function findClosestColorIndex(r: number, g: number, b: number) {
   let minDistance = Infinity;
