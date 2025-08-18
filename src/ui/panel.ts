@@ -1,6 +1,5 @@
 /// <reference types="tampermonkey" />
 import { config, me, saveConfig, getActiveOverlay, applyTheme } from '../core/store';
-import { ensureHook } from '../core/hook';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { urlToDataURL, fileToDataURL, gmFetchJson } from '../core/gm';
@@ -214,7 +213,7 @@ function rebuildOverlayListUI() {
     const [radio, checkbox, nameDiv, trashBtn] = item.children as any as [HTMLInputElement, HTMLInputElement, HTMLDivElement, HTMLButtonElement];
     radio.addEventListener('change', async () => { config.activeOverlayId = ov.id; await saveConfig(['activeOverlayId']); updateUI(); });
     checkbox.addEventListener('change', async () => {
-      ov.enabled = checkbox.checked; await saveConfig(['overlays']); clearOverlayCache(); ensureHook(); updateUI();
+      ov.enabled = checkbox.checked; await saveConfig(['overlays']); clearOverlayCache(); updateUI();
     });
     nameDiv.addEventListener('click', async () => { config.activeOverlayId = ov.id; await saveConfig(['activeOverlayId']); updateUI(); });
     trashBtn.addEventListener('click', async (e) => {
@@ -224,7 +223,7 @@ function rebuildOverlayListUI() {
       if (idx >= 0) {
         config.overlays.splice(idx, 1);
         if (config.activeOverlayId === ov.id) config.activeOverlayId = config.overlays[0]?.id || null;
-        await saveConfig(['overlays', 'activeOverlayId']); clearOverlayCache(); ensureHook(); updateUI();
+        await saveConfig(['overlays', 'activeOverlayId']); clearOverlayCache(); updateUI();
       }
     });
     list.appendChild(item);
@@ -237,7 +236,7 @@ async function addBlankOverlay() {
   config.overlays.push(ov);
   config.activeOverlayId = ov.id;
   await saveConfig(['overlays', 'activeOverlayId']);
-  clearOverlayCache(); ensureHook(); updateUI();
+  clearOverlayCache(); updateUI();
   return ov;
 }
 
@@ -246,7 +245,7 @@ async function setOverlayImageFromURL(ov: any, url: string) {
   ov.imageUrl = url; ov.imageBase64 = base64; ov.isLocal = false;
   await saveConfig(['overlays']); clearOverlayCache();
   config.autoCapturePixelUrl = true; await saveConfig(['autoCapturePixelUrl']);
-  ensureHook(); updateUI();
+  updateUI();
   showToast(`Image loaded. Placement mode ON -- click once to set anchor.`);
 }
 async function setOverlayImageFromFile(ov: any, file: File) {
@@ -256,7 +255,7 @@ async function setOverlayImageFromFile(ov: any, file: File) {
   ov.imageBase64 = base64; ov.imageUrl = null; ov.isLocal = true;
   await saveConfig(['overlays']); clearOverlayCache();
   config.autoCapturePixelUrl = true; await saveConfig(['autoCapturePixelUrl']);
-  ensureHook(); updateUI();
+  updateUI();
   showToast(`Local image loaded. Placement mode ON -- click once to set anchor.`);
 }
 
@@ -319,7 +318,7 @@ async function importOverlayFromJSON(jsonText: string) {
   }
   if (imported > 0) {
     config.activeOverlayId = config.overlays[config.overlays.length - 1].id;
-    await saveConfig(['overlays', 'activeOverlayId']); clearOverlayCache(); ensureHook(); updateUI();
+    await saveConfig(['overlays', 'activeOverlayId']); clearOverlayCache(); updateUI();
   }
   alert(`Import finished. Imported: ${imported}${failed ? `, Failed: ${failed}` : ''}`);
 }
@@ -359,14 +358,13 @@ function addEventListeners(panel: HTMLDivElement) {
             config.overlayMode = mode;
         }
         saveConfig(['overlayMode']);
-        ensureHook();
         updateUI();
     });
   });
-  $('op-style-dots').addEventListener('change', () => { if (($('op-style-dots') as HTMLInputElement).checked) { config.minifyStyle = 'dots'; saveConfig(['minifyStyle']); clearOverlayCache(); ensureHook(); }});
-  $('op-style-symbols').addEventListener('change', () => { if (($('op-style-symbols') as HTMLInputElement).checked) { config.minifyStyle = 'symbols'; saveConfig(['minifyStyle']); clearOverlayCache(); ensureHook(); }});
+  $('op-style-dots').addEventListener('change', () => { if (($('op-style-dots') as HTMLInputElement).checked) { config.minifyStyle = 'dots'; saveConfig(['minifyStyle']); clearOverlayCache(); }});
+  $('op-style-symbols').addEventListener('change', () => { if (($('op-style-symbols') as HTMLInputElement).checked) { config.minifyStyle = 'symbols'; saveConfig(['minifyStyle']); clearOverlayCache(); }});
 
-  $('op-autocap-toggle').addEventListener('click', () => { config.autoCapturePixelUrl = !config.autoCapturePixelUrl; saveConfig(['autoCapturePixelUrl']); ensureHook(); updateUI(); });
+  $('op-autocap-toggle').addEventListener('click', () => { config.autoCapturePixelUrl = !config.autoCapturePixelUrl; saveConfig(['autoCapturePixelUrl']); updateUI(); });
 
   $('op-add-overlay').addEventListener('click', async () => { try { await addBlankOverlay(); } catch (e) { console.error(e); } });
   $('op-import-overlay').addEventListener('click', async () => { const text = prompt('Paste overlay JSON (single or array) or link:'); if (!text) return; await importOverlayFromJSON(text); });
@@ -634,11 +632,11 @@ export function updateUI() {
   const behindBtn = document.createElement('button');
   behindBtn.textContent = 'Behind';
   behindBtn.className = 'op-button' + (config.overlayMode === 'behind' ? ' active' : '');
-  behindBtn.addEventListener('click', () => { config.overlayMode = 'behind'; saveConfig(['overlayMode']); ensureHook(); updateUI(); });
+  behindBtn.addEventListener('click', () => { config.overlayMode = 'behind'; saveConfig(['overlayMode']); updateUI(); });
   const aboveBtn = document.createElement('button');
   aboveBtn.textContent = 'Above';
   aboveBtn.className = 'op-button' + (config.overlayMode === 'above' ? ' active' : '');
-  aboveBtn.addEventListener('click', () => { config.overlayMode = 'above'; saveConfig(['overlayMode']); ensureHook(); updateUI(); });
+  aboveBtn.addEventListener('click', () => { config.overlayMode = 'above'; saveConfig(['overlayMode']); updateUI(); });
   layeringBtns.appendChild(behindBtn);
   layeringBtns.appendChild(aboveBtn);
 

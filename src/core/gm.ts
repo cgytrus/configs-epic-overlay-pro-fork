@@ -1,5 +1,3 @@
-export const NATIVE_FETCH = window.fetch;
-
 export const gmGet = (key: string, def: any) => {
   try {
     if (typeof GM !== 'undefined' && typeof GM.getValue === 'function') return GM.getValue(key, def);

@@ -3,7 +3,6 @@ import { WPLACE_FREE, WPLACE_PAID, WPLACE_NAMES, DEFAULT_FREE_KEYS } from '../co
 import { createCanvas } from '../core/canvas';
 import { config, saveConfig } from '../core/store';
 import { MAX_OVERLAY_DIM } from '../core/constants';
-import { ensureHook } from '../core/hook';
 import { clearOverlayCache, paletteDetectionCache } from '../core/cache';
 import { showToast } from '../core/toast';
 
@@ -181,7 +180,7 @@ export function buildCCModal() {
     // Mark the processed image as palette-perfect for optimization
     paletteDetectionCache.set(dataUrl, true);
     
-    await saveConfig(['overlays']); clearOverlayCache(); ensureHook();
+    await saveConfig(['overlays']); clearOverlayCache();
     emitOverlayChanged();
     const uniqueColors = Object.keys(cc!.lastColorCounts).length;
     showToast(`Overlay updated (${cc!.processedCanvas.width}×${cc!.processedCanvas.height}, ${uniqueColors} colors).`);

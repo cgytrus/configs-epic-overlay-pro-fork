@@ -4,7 +4,7 @@ import { imageDecodeCache, overlayCache, tooLargeOverlays, paletteDetectionCache
 import { showToast } from './toast';
 import { config, saveConfig, type OverlayItem } from './store';
 import { WPLACE_FREE, WPLACE_PAID, SYMBOL_TILES, SYMBOL_W, SYMBOL_H } from './palette';
-import { getUpdateUI, ensureHook } from './hook';
+import { getUpdateUI } from './hook';
 
 const ALL_COLORS = [...WPLACE_FREE, ...WPLACE_PAID];
 const colorIndexMap = new Map<string, number>();
@@ -451,7 +451,6 @@ export async function displayImageFromData(newOverlay: OverlayItem) {
   await saveConfig();
   
   clearOverlayCache();
-  ensureHook();
 
   const updateUI = getUpdateUI();
   if (updateUI) {

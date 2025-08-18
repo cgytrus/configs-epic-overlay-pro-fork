@@ -1,6 +1,6 @@
 /// <reference types="tampermonkey" />
 import { config, loadConfig, applyTheme } from './core/store';
-import { ensureHook, setUpdateUI } from './core/hook';
+import { attachHook, setUpdateUI } from './core/hook';
 import { injectStyles } from './ui/styles';
 import { createUI, updateUI } from './ui/panel';
 import { displayImageFromData } from './core/overlay';
@@ -63,7 +63,7 @@ export async function bootstrapApp() {
   applyTheme();
   createUI();
   setUpdateUI(() => updateUI());
-  ensureHook();
+  attachHook();
   await applyTemplateFromUrl();
   console.log('Overlay Pro UI ready.');
 }

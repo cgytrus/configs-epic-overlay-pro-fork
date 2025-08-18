@@ -2,7 +2,6 @@
 import { createCanvas, createHTMLCanvas, canvasToDataURLSafe, loadImage } from '../core/canvas';
 import { config, saveConfig } from '../core/store';
 import { MAX_OVERLAY_DIM } from '../core/constants';
-import { ensureHook } from '../core/hook';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
 
@@ -766,7 +765,6 @@ export function buildRSModal() {
         rs!.ov.isLocal = true;
         await saveConfig(['overlays']);
         clearOverlayCache();
-        ensureHook();
         emitOverlayChanged();
         closeRSModal();
         showToast(`Applied ${rs!.calcCols}×${rs!.calcRows}.`);
@@ -965,6 +963,5 @@ async function resizeOverlayImage(ov: any, targetW: number, targetH: number) {
   ov.isLocal = true;
   await saveConfig(['overlays']);
   clearOverlayCache();
-  ensureHook();
   emitOverlayChanged();
 }

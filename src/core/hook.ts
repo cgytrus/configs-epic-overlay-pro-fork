@@ -1,5 +1,4 @@
 /// <reference types="tampermonkey" />
-import { NATIVE_FETCH } from './gm';
 import { config, me, saveConfig } from './store';
 import { matchTileUrl, matchPixelUrl, extractPixelCoords, buildOverlayDataForChunkUnified, composeTileUnified, matchMeUrl } from './overlay';
 import { emit, EV_ANCHOR_SET, EV_AUTOCAP_CHANGED } from './events';
@@ -24,13 +23,11 @@ export function overlaysNeedingHook() {
   return needsHookMode && (hasImage || placing) && config.overlays.length > 0;
 }
 
-export function ensureHook() { attachHook(); }
-
 export function attachHook() {
-  if (hookInstalled) return;
-  const originalFetch = NATIVE_FETCH;
+  if (hookInstalled)
+    return;
 
-  const hookedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const hookedFetch = (originalFetch: any) => async (input: RequestInfo | URL, init?: RequestInit) => {
     const urlStr = typeof input === 'string' ? input : ((input as Request).url) || '';
 
     const meMatch = matchMeUrl(urlStr);
@@ -84,8 +81,6 @@ export function attachHook() {
             const c = extractPixelCoords(ov.pixelUrl);
             emit(EV_ANCHOR_SET, { overlayId: ov.id, name: ov.name, chunk1: c.chunk1, chunk2: c.chunk2, posX: c.posX, posY: c.posY });
             emit(EV_AUTOCAP_CHANGED, { enabled: false });
-
-            ensureHook(); // reevaluate whether hook is still needed after capture
           }
         }
       }
@@ -133,14 +128,8 @@ export function attachHook() {
     }
   };
 
-  page.fetch = hookedFetch;
-  window.fetch = hookedFetch as any;
-  hookInstalled = true;
-}
+  page.fetch = hookedFetch(page.fetch);
+  window.fetch = hookedFetch(window.fetch) as any;
 
-export function detachHook() {
-  if (!hookInstalled) return;
-  page.fetch = NATIVE_FETCH;
-  window.fetch = NATIVE_FETCH as any;
-  hookInstalled = false;
+  hookInstalled = true;
 }
