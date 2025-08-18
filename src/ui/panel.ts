@@ -124,7 +124,7 @@ export function createUI() {
             </div>
           </div>
           <div id="op-list-wrap">
-            <div class="op-list resizable" id="op-overlay-list"></div>
+            <div class="op-list resizable" id="op-overlay-list" style="height: 170px;"></div>
           </div>
         </div>
 
