@@ -103,10 +103,10 @@ export function createUI() {
               <span class="op-title-text">Overlays</span>
             </div>
             <div class="op-title-right">
-              <div class="op-row">
-                <button class="op-button" id="op-add-overlay" title="Create a new overlay">+ Add</button>
-                <button class="op-button" id="op-import-overlay" title="Import overlay JSON">Import</button>
-                <button class="op-button" id="op-export-overlay" title="Export active overlay JSON">Export</button>
+              <div class="op-row in-header">
+                <button class="op-button in-header" id="op-add-overlay" title="Create a new overlay">+ Add</button>
+                <button class="op-button in-header" id="op-import-overlay" title="Import overlay JSON">Import</button>
+                <button class="op-button in-header" id="op-export-overlay" title="Export active overlay JSON">Export</button>
                 <button class="op-chevron" id="op-collapse-list" title="Collapse/Expand">▾</button>
               </div>
             </div>

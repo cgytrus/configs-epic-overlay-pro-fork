@@ -42,16 +42,18 @@ export function injectStyles() {
       .op-header-actions { display: flex; gap: 6px; }
       .op-toggle-btn, .op-hdr-btn { background: transparent; border: 1px solid var(--op-border); color: var(--op-text); border-radius: 10px; padding: 4px 8px; cursor: pointer; }
       .op-toggle-btn:hover, .op-hdr-btn:hover { background: var(--op-btn); }
+      #op-theme-toggle { padding-left: 5px; padding-right: 4px; }
 
       .op-content { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
       .op-section { display: flex; flex-direction: column; gap: 8px; background: var(--op-subtle); border: 1px solid var(--op-border); border-radius: 12px; padding: 5px; }
 
       .op-section-title { display: flex; align-items: center; justify-content: space-between; }
-      .op-title-text { font-weight: 600; }
+      .op-title-text { font-weight: 600; padding-left: 6px; }
       .op-chevron { background: transparent; border: 1px solid var(--op-border); border-radius: 8px; padding: 2px 6px; cursor: pointer; }
       .op-chevron:hover { background: var(--op-btn); }
 
-      .op-row { display: flex; align-items: center; gap: 8px; }
+      .op-row { display: flex; align-items: center; gap: 8px; padding-left: 6px; padding-right: 6px; padding-bottom: 4px; }
+      .op-row.in-header { padding: 0; gap: 5px; }
       .op-row.space { justify-content: space-between; }
       .op-row.center { justify-content: center; text-align: center; }
       .op-row-col { display: flex; flex-direction: column; gap: 4px; }
@@ -59,6 +61,7 @@ export function injectStyles() {
       .op-small-text { font-size: 11px; color: var(--op-muted); }
 
       .op-button { background: var(--op-btn); color: var(--op-text); border: 1px solid var(--op-btn-border); border-radius: 10px; padding: 6px 10px; cursor: pointer; }
+      .op-button.in-header { padding: 2px 6px; }
       .op-button:hover { background: var(--op-btn-hover); }
       .op-button:disabled { opacity: 0.5; cursor: not-allowed; }
       .op-button.icon { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; }
