@@ -42,6 +42,7 @@ async function applyTemplateFromUrl() {
       imageUrl,
       isLocal: false,
       imageBase64,
+      imageId: crypto.randomUUID(),
       pixelUrl,
       offsetX,
       offsetY,

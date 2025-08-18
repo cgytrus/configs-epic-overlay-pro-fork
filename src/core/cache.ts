@@ -10,6 +10,8 @@ export class LRUCache<K=any, V=any> {
   }
   set(key: K, val: V) {
     if (this.map.has(key)) this.map.delete(key);
+    if (val == null)
+      return;
     this.map.set(key, val);
     if (this.map.size > this.max) {
       const first = this.map.keys().next().value as K;
@@ -18,18 +20,17 @@ export class LRUCache<K=any, V=any> {
   }
   has(key: K) { return this.map.has(key); }
   clear() { this.map.clear(); }
+  get size() { return this.map.size; }
 }
 
 export const overlayCache = new LRUCache<string, any>(500);
 export const imageDecodeCache = new LRUCache<string, HTMLImageElement>(64);
 export const paletteDetectionCache = new LRUCache<string, boolean>(200);
-export const baseMinifyCache = new LRUCache<string, ImageData>(100);
 export const tooLargeOverlays = new Set<string>();
 
 export function clearOverlayCache() {
   overlayCache.clear();
   imageDecodeCache.clear();
   paletteDetectionCache.clear();
-  baseMinifyCache.clear();
   tooLargeOverlays.clear();
 }

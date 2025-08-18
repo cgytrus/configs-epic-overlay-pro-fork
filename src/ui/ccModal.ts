@@ -1,10 +1,11 @@
 /// <reference types="tampermonkey" />
 import { WPLACE_FREE, WPLACE_PAID, WPLACE_NAMES, DEFAULT_FREE_KEYS } from '../core/palette';
 import { createCanvas } from '../core/canvas';
-import { config, saveConfig } from '../core/store';
+import { config, saveConfig, type OverlayItem } from '../core/store';
 import { MAX_OVERLAY_DIM } from '../core/constants';
 import { clearOverlayCache, paletteDetectionCache } from '../core/cache';
 import { showToast } from '../core/toast';
+import { uid } from '../core/util';
 
 // dispatch when an overlay image is updated
 function emitOverlayChanged() {
@@ -37,7 +38,7 @@ type CCState = {
   selectedPaid: Set<string>;
   realtime: boolean;
 
-  overlay: any | null;
+  overlay: OverlayItem | null;
   lastColorCounts: Record<string, number>;
   isStale: boolean;
 };
@@ -176,6 +177,7 @@ export function buildCCModal() {
     }
     const dataUrl = cc!.processedCanvas.toDataURL('image/png');
     ov.imageBase64 = dataUrl; ov.imageUrl = null; ov.isLocal = true;
+    ov.imageId = uid();
     
     // Mark the processed image as palette-perfect for optimization
     paletteDetectionCache.set(dataUrl, true);

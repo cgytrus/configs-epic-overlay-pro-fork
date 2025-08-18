@@ -115,7 +115,7 @@ export function attachHook() {
       const finalBlob = await composeTileUnified(originalBlob, overlayDatas.filter(Boolean) as any[], mode);
       const headers = new Headers(response.headers);
       headers.set('Content-Type', 'image/png');
-      headers.delete('Content-Length');
+      headers.set('Content-Length', `${finalBlob.size}`);
 
       return new Response(finalBlob, {
         status: response.status,

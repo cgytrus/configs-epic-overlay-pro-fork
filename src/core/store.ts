@@ -8,6 +8,7 @@ export type OverlayItem = {
   enabled: boolean;
   imageUrl: string | null;
   imageBase64: string | null;
+  imageId: string;
   isLocal: boolean;
   pixelUrl: string | null;
   offsetX: number;

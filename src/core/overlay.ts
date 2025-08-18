@@ -1,6 +1,6 @@
 import { createCanvas, canvasToBlob, blobToImage, loadImage } from './canvas';
 import { MINIFY_SCALE, MINIFY_SCALE_SYMBOL, TILE_SIZE, MAX_OVERLAY_DIM } from './constants';
-import { imageDecodeCache, overlayCache, tooLargeOverlays, paletteDetectionCache, baseMinifyCache, clearOverlayCache } from './cache';
+import { imageDecodeCache, overlayCache, tooLargeOverlays, paletteDetectionCache, clearOverlayCache } from './cache';
 import { showToast } from './toast';
 import { config, saveConfig, type OverlayItem } from './store';
 import { WPLACE_FREE, WPLACE_PAID, SYMBOL_TILES, SYMBOL_W, SYMBOL_H } from './palette';
@@ -151,24 +151,13 @@ export async function decodeOverlayImage(imageBase64: string | null) {
   return img;
 }
 
-export function overlaySignature(ov: {
-  imageBase64: string | null,
-  pixelUrl: string | null,
-  offsetX: number,
-  offsetY: number,
-  opacity: number,
-}, isPalettePerfect?: boolean) {
-  const imgKey = ov.imageBase64 ? ov.imageBase64.slice(0, 64) + ':' + ov.imageBase64.length : 'none';
+export function overlaySignature(ov: OverlayItem, isPalettePerfect?: boolean) {
   const perfectFlag = isPalettePerfect !== undefined ? (isPalettePerfect ? 'P' : 'I') : 'U';
-  return [imgKey, ov.pixelUrl || 'null', ov.offsetX, ov.offsetY, ov.opacity, perfectFlag].join('|');
+  return [ov.imageId, ov.pixelUrl || 'null', ov.offsetX, ov.offsetY, ov.opacity, perfectFlag].join('|');
 }
 
 export async function buildOverlayDataForChunkUnified(
-  ov: {
-    id: string, name: string, enabled: boolean,
-    imageBase64: string | null, pixelUrl: string | null,
-    offsetX: number, offsetY: number, opacity: number
-  },
+  ov: OverlayItem,
   targetChunk1: number,
   targetChunk2: number,
   mode: 'behind' | 'above' | 'minify'
@@ -196,7 +185,7 @@ export async function buildOverlayDataForChunkUnified(
   const isPalettePerfect = isPalettePerfectImage(img);
   const sig = overlaySignature(ov, isPalettePerfect);
   const cacheKey = `ov:${ov.id}|sig:${sig}|tile:${targetChunk1},${targetChunk2}|mode:${mode}`;
-  const cached = overlayCache.get(cacheKey);
+  const cached = undefined;//overlayCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
   const colorStrength = (mode === 'minify') ? 1.0 : ov.opacity;
@@ -382,23 +371,13 @@ export async function composeTileUnified(
   if (mode === 'minify') {
     const scale = config.minifyStyle === 'symbols' ? MINIFY_SCALE_SYMBOL : MINIFY_SCALE;
     const w = originalImage.width, h = originalImage.height;
-    
-    const arrayBuffer = await originalBlob.arrayBuffer();
-    const view = new DataView(arrayBuffer);
-    const hash = view.getUint32(0, true) ^ view.getUint32(view.byteLength - 4, true);
 
-    const baseCacheKey = `base:${originalBlob.size}:${hash}:${w}x${h}:${scale}:${config.minifyStyle}`;
-    let scaledBaseImageData = baseMinifyCache.get(baseCacheKey);
+    const baseCanvas = createCanvas(w * scale, h * scale) as any;
+    const baseCtx = baseCanvas.getContext('2d', { willReadFrequently: true })!;
+    baseCtx.imageSmoothingEnabled = false;
+    baseCtx.drawImage(originalImage, 0, 0, w * scale, h * scale);
+    const scaledBaseImageData = baseCtx.getImageData(0, 0, w * scale, h * scale);
 
-    if (!scaledBaseImageData) {
-      const baseCanvas = createCanvas(w * scale, h * scale) as any;
-      const baseCtx = baseCanvas.getContext('2d', { willReadFrequently: true })!;
-      baseCtx.imageSmoothingEnabled = false;
-      baseCtx.drawImage(originalImage, 0, 0, w * scale, h * scale);
-      scaledBaseImageData = baseCtx.getImageData(0, 0, w * scale, h * scale);
-      baseMinifyCache.set(baseCacheKey, scaledBaseImageData);
-    }
-    
     const canvas = createCanvas(w * scale, h * scale) as any;
     const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
     ctx.putImageData(scaledBaseImageData, 0, 0);

@@ -1,5 +1,5 @@
 /// <reference types="tampermonkey" />
-import { config, me, saveConfig, getActiveOverlay, applyTheme } from '../core/store';
+import { config, me, saveConfig, getActiveOverlay, applyTheme, type OverlayItem } from '../core/store';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { urlToDataURL, fileToDataURL, gmFetchJson } from '../core/gm';
@@ -232,7 +232,7 @@ function rebuildOverlayListUI() {
 
 async function addBlankOverlay() {
   const name = uniqueName('Overlay', config.overlays.map(o => o.name || ''));
-  const ov = { id: uid(), name, enabled: true, imageUrl: null, imageBase64: null, isLocal: false, pixelUrl: null, offsetX: 0, offsetY: 0, opacity: 0.7 };
+  const ov = { id: uid(), name, enabled: true, imageUrl: null, imageBase64: null, imageId: uid(), isLocal: false, pixelUrl: null, offsetX: 0, offsetY: 0, opacity: 0.7 };
   config.overlays.push(ov);
   config.activeOverlayId = ov.id;
   await saveConfig(['overlays', 'activeOverlayId']);
@@ -240,19 +240,21 @@ async function addBlankOverlay() {
   return ov;
 }
 
-async function setOverlayImageFromURL(ov: any, url: string) {
+async function setOverlayImageFromURL(ov: OverlayItem, url: string) {
   const base64 = await urlToDataURL(url);
   ov.imageUrl = url; ov.imageBase64 = base64; ov.isLocal = false;
+  ov.imageId = uid();
   await saveConfig(['overlays']); clearOverlayCache();
   config.autoCapturePixelUrl = true; await saveConfig(['autoCapturePixelUrl']);
   updateUI();
   showToast(`Image loaded. Placement mode ON -- click once to set anchor.`);
 }
-async function setOverlayImageFromFile(ov: any, file: File) {
+async function setOverlayImageFromFile(ov: OverlayItem, file: File) {
   if (!file || !file.type || !file.type.startsWith('image/')) { alert('Please choose an image file.'); return; }
   if (!confirm('Local PNGs cannot be exported to friends! Are you sure?')) return;
   const base64 = await fileToDataURL(file);
   ov.imageBase64 = base64; ov.imageUrl = null; ov.isLocal = true;
+  ov.imageId = uid();
   await saveConfig(['overlays']); clearOverlayCache();
   config.autoCapturePixelUrl = true; await saveConfig(['autoCapturePixelUrl']);
   updateUI();
@@ -288,6 +290,7 @@ async function importOverlayFromJSON(jsonText: string) {
           override.imageUrl = item.imageUrl;
           override.imageBase64 = base64;
           override.isLocal = false;
+          override.imageId = uid();
         }
         catch (e) {
           console.error('Import failed for', item.imageUrl, e);
@@ -311,7 +314,7 @@ async function importOverlayFromJSON(jsonText: string) {
       if (!imageUrl) { failed++; continue; }
       try {
         const base64 = await urlToDataURL(imageUrl);
-        const ov = { id: uid(), name, enabled: true, imageUrl, imageBase64: base64, isLocal: false, pixelUrl, offsetX, offsetY, opacity };
+        const ov = { id: uid(), name, enabled: true, imageUrl, imageBase64: base64, imageId: uid(), isLocal: false, pixelUrl, offsetX, offsetY, opacity };
         config.overlays.push(ov); imported++;
       } catch (e) { console.error('Import failed for', imageUrl, e); failed++; }
     }
