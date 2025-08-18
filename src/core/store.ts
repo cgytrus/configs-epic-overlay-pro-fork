@@ -19,8 +19,8 @@ export type OverlayItem = {
 export type Config = {
   overlays: OverlayItem[];
   activeOverlayId: string | null;
-  overlayMode: 'behind' | 'above' | 'minify' | 'original';
-  minifyStyle: 'dots' | 'symbols';
+  overlayLayering: 'behind' | 'above' | 'top';
+  overlayStyle: 'full' | 'dots' | 'none';
   isPanelCollapsed: boolean;
   autoCapturePixelUrl: boolean;
   panelX: number | null;
@@ -40,8 +40,8 @@ export type Config = {
 export const config: Config = {
   overlays: [],
   activeOverlayId: null,
-  overlayMode: 'behind',
-  minifyStyle: 'dots',
+  overlayLayering: 'top',
+  overlayStyle: 'dots',
   isPanelCollapsed: false,
   autoCapturePixelUrl: false,
   panelX: null,

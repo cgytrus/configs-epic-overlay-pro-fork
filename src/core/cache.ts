@@ -23,13 +23,11 @@ export class LRUCache<K=any, V=any> {
   get size() { return this.map.size; }
 }
 
-export const overlayCache = new LRUCache<string, any>(500);
 export const imageDecodeCache = new LRUCache<string, HTMLImageElement>(64);
 export const paletteDetectionCache = new LRUCache<string, boolean>(200);
 export const tooLargeOverlays = new Set<string>();
 
 export function clearOverlayCache() {
-  overlayCache.clear();
   imageDecodeCache.clear();
   paletteDetectionCache.clear();
   tooLargeOverlays.clear();

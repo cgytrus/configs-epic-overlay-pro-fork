@@ -4,7 +4,7 @@ import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { urlToDataURL, fileToDataURL, gmFetchJson } from '../core/gm';
 import { uniqueName, uid } from '../core/util';
-import { extractPixelCoords } from '../core/overlay';
+import { extractPixelCoords, updateOverlays } from '../core/overlay';
 import { buildCCModal, openCCModal } from './ccModal';
 import { buildRSModal, openRSModal } from './rsModal';
 import { EV_ANCHOR_SET, EV_AUTOCAP_CHANGED } from '../core/events';
@@ -67,21 +67,13 @@ export function createUI() {
           </div>
           <div id="op-mode-body">
             <div class="op-row op-tabs">
-              <button class="op-tab-btn" data-mode="above">Full Overlay</button>
-              <button class="op-tab-btn" data-mode="minify">Mini-pixel</button>
-              <button class="op-tab-btn" data-mode="original">Disabled</button>
+              <button class="op-tab-btn" data-mode="full">Full</button>
+              <button class="op-tab-btn" data-mode="dots">Dots</button>
+              <button class="op-tab-btn" data-mode="none">Disabled</button>
             </div>
-            <div id="op-mode-settings">
-              <div class="op-mode-setting" data-setting="above">
-                <div class="op-row"><label>Layering</label><div id="op-layering-btns"></div></div>
-                <div class="op-row"><label style="width: 60px;">Opacity</label><input type="range" min="0" max="1" step="0.05" class="op-slider op-grow" id="op-opacity-slider"><span id="op-opacity-value" style="width: 36px; text-align: right;">70%</span></div>
-              </div>
-              <div class="op-mode-setting" data-setting="minify">
-                <div class="op-row"><label>Style</label>
-                  <div class="op-row"><input type="radio" name="minify-style" value="dots" id="op-style-dots"><label for="op-style-dots">Dots</label></div>
-                  <div class="op-row"><input type="radio" name="minify-style" value="symbols" id="op-style-symbols"><label for="op-style-symbols">Symbols (slow and buggy, wait 4 fix!)</label></div>
-                </div>
-              </div>
+            <div class="op-mode-setting" id="op-mode-settings">
+              <div class="op-row"><label>Layering</label><div id="op-layering-btns"></div></div>
+              <div class="op-row"><label style="width: 60px;">Opacity</label><input type="range" min="0" max="1" step="0.05" class="op-slider op-grow" id="op-opacity-slider"><span id="op-opacity-value" style="width: 36px; text-align: right;">70%</span></div>
             </div>
           </div>
         </div>
@@ -214,6 +206,7 @@ function rebuildOverlayListUI() {
     radio.addEventListener('change', async () => { config.activeOverlayId = ov.id; await saveConfig(['activeOverlayId']); updateUI(); });
     checkbox.addEventListener('change', async () => {
       ov.enabled = checkbox.checked; await saveConfig(['overlays']); clearOverlayCache(); updateUI();
+      await updateOverlays();
     });
     nameDiv.addEventListener('click', async () => { config.activeOverlayId = ov.id; await saveConfig(['activeOverlayId']); updateUI(); });
     trashBtn.addEventListener('click', async (e) => {
@@ -224,6 +217,7 @@ function rebuildOverlayListUI() {
         config.overlays.splice(idx, 1);
         if (config.activeOverlayId === ov.id) config.activeOverlayId = config.overlays[0]?.id || null;
         await saveConfig(['overlays', 'activeOverlayId']); clearOverlayCache(); updateUI();
+        await updateOverlays();
       }
     });
     list.appendChild(item);
@@ -237,6 +231,7 @@ async function addBlankOverlay() {
   config.activeOverlayId = ov.id;
   await saveConfig(['overlays', 'activeOverlayId']);
   clearOverlayCache(); updateUI();
+  await updateOverlays();
   return ov;
 }
 
@@ -247,6 +242,7 @@ async function setOverlayImageFromURL(ov: OverlayItem, url: string) {
   await saveConfig(['overlays']); clearOverlayCache();
   config.autoCapturePixelUrl = true; await saveConfig(['autoCapturePixelUrl']);
   updateUI();
+  await updateOverlays();
   showToast(`Image loaded. Placement mode ON -- click once to set anchor.`);
 }
 async function setOverlayImageFromFile(ov: OverlayItem, file: File) {
@@ -258,6 +254,7 @@ async function setOverlayImageFromFile(ov: OverlayItem, file: File) {
   await saveConfig(['overlays']); clearOverlayCache();
   config.autoCapturePixelUrl = true; await saveConfig(['autoCapturePixelUrl']);
   updateUI();
+  await updateOverlays();
   showToast(`Local image loaded. Placement mode ON -- click once to set anchor.`);
 }
 
@@ -322,6 +319,7 @@ async function importOverlayFromJSON(jsonText: string) {
   if (imported > 0) {
     config.activeOverlayId = config.overlays[config.overlays.length - 1].id;
     await saveConfig(['overlays', 'activeOverlayId']); clearOverlayCache(); updateUI();
+    await updateOverlays();
   }
   alert(`Import finished. Imported: ${imported}${failed ? `, Failed: ${failed}` : ''}`);
 }
@@ -353,19 +351,14 @@ function addEventListeners(panel: HTMLDivElement) {
   $('op-panel-toggle').addEventListener('click', (e) => { e.stopPropagation(); config.isPanelCollapsed = !config.isPanelCollapsed; saveConfig(['isPanelCollapsed']); updateUI(); });
 
   panel.querySelectorAll('.op-tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const mode = btn.getAttribute('data-mode') as 'above' | 'minify' | 'original';
-        if (mode === 'above') {
-            config.overlayMode = 'behind';
-        } else {
-            config.overlayMode = mode;
-        }
-        saveConfig(['overlayMode']);
+    btn.addEventListener('click', async () => {
+        const mode = btn.getAttribute('data-mode') as 'full' | 'dots' | 'none';
+        config.overlayStyle = mode;
+        saveConfig(['overlayStyle']);
         updateUI();
+        await updateOverlays();
     });
   });
-  $('op-style-dots').addEventListener('change', () => { if (($('op-style-dots') as HTMLInputElement).checked) { config.minifyStyle = 'dots'; saveConfig(['minifyStyle']); clearOverlayCache(); }});
-  $('op-style-symbols').addEventListener('change', () => { if (($('op-style-symbols') as HTMLInputElement).checked) { config.minifyStyle = 'symbols'; saveConfig(['minifyStyle']); clearOverlayCache(); }});
 
   $('op-autocap-toggle').addEventListener('click', () => { config.autoCapturePixelUrl = !config.autoCapturePixelUrl; saveConfig(['autoCapturePixelUrl']); updateUI(); });
 
@@ -386,6 +379,7 @@ function addEventListeners(panel: HTMLDivElement) {
       showToast(`Name in use. Renamed to "${ov.name}".`);
     } else { ov.name = desired; }
     await saveConfig(['overlays']); rebuildOverlayListUI();
+    await updateOverlays();
   });
 
   $('op-fetch').addEventListener('click', async () => {
@@ -416,6 +410,7 @@ function addEventListeners(panel: HTMLDivElement) {
     const ov = getActiveOverlay(); if (!ov) return;
     ov.offsetX += dx; ov.offsetY += dy;
     await saveConfig(['overlays']); clearOverlayCache(); updateUI();
+    await updateOverlays();
   };
   $('op-nudge-up').addEventListener('click', () => nudge(0, -1));
   $('op-nudge-down').addEventListener('click', () => nudge(0, 1));
@@ -427,7 +422,7 @@ function addEventListeners(panel: HTMLDivElement) {
     ov.opacity = parseFloat(e.target.value);
     $('op-opacity-value').textContent = Math.round(ov.opacity * 100) + '%';
   });
-  $('op-opacity-slider').addEventListener('change', async () => { await saveConfig(['overlays']); clearOverlayCache(); });
+  $('op-opacity-slider').addEventListener('change', async () => { await saveConfig(['overlays']); clearOverlayCache(); await updateOverlays(); });
 
   $('op-download-overlay').addEventListener('click', () => {
     const ov = getActiveOverlay();
@@ -557,6 +552,8 @@ function levelPixels(level) {
 export function updateUI() {
   if (!panelEl) return;
 
+  const ov = getActiveOverlay();
+
   applyTheme();
   updateThemeToggle();
 
@@ -593,12 +590,7 @@ export function updateUI() {
   // --- Mode Tabs ---
   panelEl.querySelectorAll('.op-tab-btn').forEach(btn => {
     const mode = btn.getAttribute('data-mode');
-    let isActive = false;
-    if (mode === 'above' && (config.overlayMode === 'above' || config.overlayMode === 'behind')) {
-        isActive = true;
-    } else {
-        isActive = mode === config.overlayMode;
-    }
+    let isActive = mode === config.overlayStyle;
     btn.classList.toggle('active', isActive);
   });
 
@@ -608,41 +600,25 @@ export function updateUI() {
   if (modeCz) modeCz.textContent = config.collapseMode ? '▸' : '▾';
 
   // --- Mode Settings ---
-  const fullOverlaySettings = $('op-mode-settings').querySelector('[data-setting="above"]') as HTMLDivElement;
-  const minifySettings = $('op-mode-settings').querySelector('[data-setting="minify"]') as HTMLDivElement;
-
-  if (config.overlayMode === 'above' || config.overlayMode === 'behind') {
-    fullOverlaySettings.classList.add('active');
-    minifySettings.classList.remove('active');
-    const ov = getActiveOverlay();
-    if(ov) {
-        ( $('op-opacity-slider') as HTMLInputElement ).value = String(ov.opacity);
-        $('op-opacity-value').textContent = Math.round(ov.opacity * 100) + '%';
-    }
-  } else if (config.overlayMode === 'minify') {
-    fullOverlaySettings.classList.remove('active');
-    minifySettings.classList.add('active');
-  } else {
-    fullOverlaySettings.classList.remove('active');
-    minifySettings.classList.remove('active');
+  if (ov) {
+    ($('op-opacity-slider') as HTMLInputElement).value = String(ov.opacity);
+    $('op-opacity-value').textContent = Math.round(ov.opacity * 100) + '%';
   }
 
-  ($('op-style-dots') as HTMLInputElement).checked = config.minifyStyle === 'dots';
-  ($('op-style-symbols') as HTMLInputElement).checked = config.minifyStyle === 'symbols';
-  
   const layeringBtns = $('op-layering-btns');
   layeringBtns.innerHTML = '';
-  const behindBtn = document.createElement('button');
-  behindBtn.textContent = 'Behind';
-  behindBtn.className = 'op-button' + (config.overlayMode === 'behind' ? ' active' : '');
-  behindBtn.addEventListener('click', () => { config.overlayMode = 'behind'; saveConfig(['overlayMode']); updateUI(); });
-  const aboveBtn = document.createElement('button');
-  aboveBtn.textContent = 'Above';
-  aboveBtn.className = 'op-button' + (config.overlayMode === 'above' ? ' active' : '');
-  aboveBtn.addEventListener('click', () => { config.overlayMode = 'above'; saveConfig(['overlayMode']); updateUI(); });
-  layeringBtns.appendChild(behindBtn);
-  layeringBtns.appendChild(aboveBtn);
-
+  for (const layering of [ 'Behind', 'Above', 'Top' ]) {
+    const button = document.createElement('button');
+    button.textContent = layering;
+    button.className = 'op-button' + (config.overlayLayering === layering.toLowerCase() ? ' active' : '');
+    button.addEventListener('click', async () => {
+      config.overlayLayering = layering.toLowerCase() as 'behind' | 'above' | 'top';
+      saveConfig(['overlayLayering']);
+      updateUI();
+      await updateOverlays();
+    });
+    layeringBtns.appendChild(button);
+  }
 
   // --- Positioning Section ---
   const autoBtn = $('op-autocap-toggle');
@@ -665,7 +641,6 @@ export function updateUI() {
   updateEditorUI();
 
   const exportBtn = $('op-export-overlay') as HTMLButtonElement;
-  const ov = getActiveOverlay();
   const canExport = !!(ov && ov.imageUrl && !ov.isLocal);
   exportBtn.disabled = !canExport;
   exportBtn.title = canExport ? 'Export active overlay JSON' : 'Export disabled for local images';

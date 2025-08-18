@@ -6,6 +6,7 @@ import { MAX_OVERLAY_DIM } from '../core/constants';
 import { clearOverlayCache, paletteDetectionCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { uid } from '../core/util';
+import { updateOverlays } from '../core/overlay';
 
 // dispatch when an overlay image is updated
 function emitOverlayChanged() {
@@ -183,6 +184,7 @@ export function buildCCModal() {
     paletteDetectionCache.set(dataUrl, true);
     
     await saveConfig(['overlays']); clearOverlayCache();
+    await updateOverlays();
     emitOverlayChanged();
     const uniqueColors = Object.keys(cc!.lastColorCounts).length;
     showToast(`Overlay updated (${cc!.processedCanvas.width}×${cc!.processedCanvas.height}, ${uniqueColors} colors).`);

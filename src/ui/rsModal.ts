@@ -5,6 +5,7 @@ import { MAX_OVERLAY_DIM } from '../core/constants';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { uid } from '../core/util';
+import { updateOverlays } from '../core/overlay';
 
 // dispatch when an overlay image is updated
 function emitOverlayChanged() {
@@ -767,6 +768,7 @@ export function buildRSModal() {
         rs!.ov.imageId = uid();
         await saveConfig(['overlays']);
         clearOverlayCache();
+        await updateOverlays();
         emitOverlayChanged();
         closeRSModal();
         showToast(`Applied ${rs!.calcCols}×${rs!.calcRows}.`);
@@ -966,5 +968,6 @@ async function resizeOverlayImage(ov: OverlayItem, targetW: number, targetH: num
   ov.imageId = uid();
   await saveConfig(['overlays']);
   clearOverlayCache();
+  await updateOverlays();
   emitOverlayChanged();
 }

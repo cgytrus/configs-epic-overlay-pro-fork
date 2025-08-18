@@ -1,8 +1,9 @@
 /// <reference types="tampermonkey" />
 import { config, me, saveConfig } from './store';
-import { matchTileUrl, matchPixelUrl, extractPixelCoords, buildOverlayDataForChunkUnified, composeTileUnified, matchMeUrl } from './overlay';
+import { matchPixelUrl, extractPixelCoords, matchMeUrl, updateOverlays } from './overlay';
 import { emit, EV_ANCHOR_SET, EV_AUTOCAP_CHANGED } from './events';
 import { updateUI } from '../ui/panel';
+import { type Map } from 'maplibre-gl';
 
 let hookInstalled = false;
 let updateUICallback: null | (() => void) = null;
@@ -16,14 +17,29 @@ export function getUpdateUI() {
   return updateUICallback;
 }
 
-export function overlaysNeedingHook() {
-  const hasImage = config.overlays.some(o => o.enabled && o.imageBase64);
-  const placing  = !!config.autoCapturePixelUrl && !!config.activeOverlayId;
-  const needsHookMode = (config.overlayMode === 'behind' || config.overlayMode === 'above' || config.overlayMode === 'minify');
-  return needsHookMode && (hasImage || placing) && config.overlays.length > 0;
+export let map: Map | null = null;
+
+async function mapCreated(x: Map) {
+  map = x;
+  page.map = x;
+  await updateOverlays();
 }
 
 export function attachHook() {
+  if (!map) {
+    page.PromiseOrig = page.Promise;
+    page.Promise = class extends page.PromiseOrig {
+      constructor(executor: any) {
+        super(executor);
+        if (!executor.toString().includes('maps.wplace.live'))
+          return;
+        this.then(async (x: Map) => await mapCreated(x));
+        page.Promise = page.PromiseOrig;
+        page.PromiseOrig = undefined;
+      }
+    };
+  }
+
   if (hookInstalled)
     return;
 
@@ -55,10 +71,6 @@ export function attachHook() {
       }
     }
 
-    if (!overlaysNeedingHook()) {
-      return originalFetch(input as any, init as any);
-    }
-
     // Anchor auto-capture: watch pixel endpoint, then store/normalize
     if (config.autoCapturePixelUrl && config.activeOverlayId) {
       const pixelMatch = matchPixelUrl(urlStr);
@@ -81,51 +93,13 @@ export function attachHook() {
             const c = extractPixelCoords(ov.pixelUrl);
             emit(EV_ANCHOR_SET, { overlayId: ov.id, name: ov.name, chunk1: c.chunk1, chunk2: c.chunk2, posX: c.posX, posY: c.posY });
             emit(EV_AUTOCAP_CHANGED, { enabled: false });
+            await updateOverlays();
           }
         }
       }
     }
 
-    // Overlay modes: rewrite tile images
-    const tileMatch = matchTileUrl(urlStr);
-    const validModes = ['behind', 'above', 'minify'];
-    if (!tileMatch || !validModes.includes(config.overlayMode)) {
-      return originalFetch(input as any, init as any);
-    }
-
-    try {
-      const response = await originalFetch(input as any, init as any);
-      if (!response.ok) return response;
-
-      const ct = (response.headers.get('Content-Type') || '').toLowerCase();
-      if (!ct.includes('image')) return response;
-
-      const enabledOverlays = config.overlays.filter(o => o.enabled && o.imageBase64 && o.pixelUrl);
-      if (enabledOverlays.length === 0) return response;
-
-      const originalBlob = await response.blob();
-      if (originalBlob.size > 15 * 1024 * 1024) return response;
-
-      const mode = config.overlayMode as 'behind'|'above'|'minify';
-      const overlayDatas = [];
-      for (const ov of enabledOverlays) {
-        overlayDatas.push(await buildOverlayDataForChunkUnified(ov, tileMatch.chunk1, tileMatch.chunk2, mode));
-      }
-
-      const finalBlob = await composeTileUnified(originalBlob, overlayDatas.filter(Boolean) as any[], mode);
-      const headers = new Headers(response.headers);
-      headers.set('Content-Type', 'image/png');
-      headers.set('Content-Length', `${finalBlob.size}`);
-
-      return new Response(finalBlob, {
-        status: response.status,
-        statusText: response.statusText,
-        headers
-      });
-    } catch (e) {
-      console.error("Overlay Pro: Error processing tile", e);
-      return originalFetch(input as any, init as any);
-    }
+    return originalFetch(input as any, init as any);
   };
 
   page.fetch = hookedFetch(page.fetch);

@@ -77,13 +77,12 @@ export function injectStyles() {
 
       .op-muted { color: var(--op-muted); font-size: 12px; }
 
-     .op-tabs { padding: 4px; border-bottom: 1px solid var(--op-border); }
-     .op-tab-btn { flex: 1; padding: 6px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--op-text); cursor: pointer; }
-     .op-tab-btn:hover { background: var(--op-btn-hover); }
-     .op-tab-btn.active { background: var(--op-btn); border-color: var(--op-btn-border); font-weight: 600; }
+      .op-tabs { padding: 4px; border-bottom: 1px solid var(--op-border); }
+      .op-tab-btn { flex: 1; padding: 6px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--op-text); cursor: pointer; }
+      .op-tab-btn:hover { background: var(--op-btn-hover); }
+      .op-tab-btn.active { background: var(--op-btn); border-color: var(--op-btn-border); font-weight: 600; }
 
-     .op-mode-setting { display: none; padding: 6px; }
-     .op-mode-setting.active { display: flex; flex-direction: column; gap: 8px; }
+      .op-mode-setting { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
 
       .op-preview { width: 100%; height: 90px; background: var(--op-bg); display: flex; align-items: center; justify-content: center; border: 2px dashed color-mix(in oklab, var(--op-accent) 40%, var(--op-border)); border-radius: 10px; overflow: hidden; position: relative; cursor: pointer; }
       .op-preview img { max-width: 100%; max-height: 100%; display: block; pointer-events: none; }
