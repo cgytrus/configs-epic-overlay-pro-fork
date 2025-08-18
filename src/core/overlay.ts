@@ -145,7 +145,7 @@ export async function updateOverlays() {
 
     try {
       if (existingLayer) {
-        map.setPaintProperty(name, 'raster-opacity', config.overlayStyle == 'full' ? ov.opacity : 0.0);
+        map.setPaintProperty(name, 'raster-opacity', config.overlayStyle == 'full' ? ov.opacity : 1.0);
         map.moveLayer(name, ({
           'behind': 'pixel-art-layer',
           'above': 'pixel-hover',
@@ -173,7 +173,7 @@ export async function updateOverlays() {
           source: name,
           paint: {
             'raster-resampling': 'nearest',
-            'raster-opacity': config.overlayStyle == 'full' ? ov.opacity : 0.0
+            'raster-opacity': config.overlayStyle == 'full' ? ov.opacity : 1.0
           }
         }, ({
           'behind': 'pixel-art-layer',
