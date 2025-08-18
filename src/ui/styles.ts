@@ -43,6 +43,11 @@ export function injectStyles() {
       .op-toggle-btn, .op-hdr-btn { background: transparent; border: 1px solid var(--op-border); color: var(--op-text); border-radius: 10px; padding: 4px 8px; cursor: pointer; }
       .op-toggle-btn:hover, .op-hdr-btn:hover { background: var(--op-btn); }
       #op-theme-toggle { padding-left: 5px; padding-right: 4px; }
+      #op-small-stats {
+        text-wrap-mode: nowrap;
+        width: 120px;
+        overflow: hidden;
+      }
 
       .op-content { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
       .op-section { display: flex; flex-direction: column; gap: 8px; background: var(--op-subtle); border: 1px solid var(--op-border); border-radius: 12px; padding: 5px; }
@@ -53,7 +58,7 @@ export function injectStyles() {
       .op-chevron:hover { background: var(--op-btn); }
 
       .op-row { display: flex; align-items: center; gap: 8px; padding-left: 6px; padding-right: 6px; padding-bottom: 4px; }
-      .op-row.in-header { padding: 0; gap: 5px; }
+      .op-row.in-header { padding: 0; gap: 5px; align-items: baseline; }
       .op-row.space { justify-content: space-between; }
       .op-row.center { justify-content: center; text-align: center; }
       .op-row-col { display: flex; flex-direction: column; gap: 4px; }

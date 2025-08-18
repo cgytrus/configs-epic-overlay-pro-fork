@@ -27,7 +27,10 @@ export function createUI() {
 
   panel.innerHTML = `
       <div class="op-header" id="op-header">
-        <h3>Overlay Pro</h3>
+        <div class="op-row in-header">
+          <h3>Overlay Pro</h3>
+          <div class="op-small-text" id="op-small-stats"></div>
+        </div>
         <div class="op-header-actions">
           <button class="op-hdr-btn" id="op-theme-toggle" title="Toggle theme">☀️/🌙</button>
           <button class="op-hdr-btn" id="op-refresh-btn" title="Refresh">⟲</button>
@@ -72,7 +75,7 @@ export function createUI() {
               <button class="op-tab-btn" data-mode="none">Disabled</button>
             </div>
             <div class="op-mode-setting" id="op-mode-settings">
-              <div class="op-row"><label>Layering</label><div id="op-layering-btns"></div></div>
+              <div class="op-row" id="op-layering-btns"><label>Layering</label></div>
               <div class="op-row"><label style="width: 60px;">Opacity</label><input type="range" min="0" max="1" step="0.05" class="op-slider op-grow" id="op-opacity-slider"><span id="op-opacity-value" style="width: 36px; text-align: right;">70%</span></div>
             </div>
           </div>
@@ -571,20 +574,28 @@ export function updateUI() {
   const statsCz = $('op-collapse-stats');
   const dropletsValue = $('op-droplets-value');
   const levelValue = $('op-level-value');
+  const smallStats = $('op-small-stats');
   if (statsBody) statsBody.style.display = config.collapseStats ? 'none' : 'block';
   if (statsCz) statsCz.textContent = config.collapseStats ? '▸' : '▾';
   if (me.data) {
-    if (dropletsValue && me.data.droplets !== undefined) {
+    const level = Math.floor(me.data.level);
+    const percent = Math.floor((me.data.level - level) * 100.0);
+    const forCurrentLevel = levelPixels(level - 1);
+    const forNextLevel = levelPixels(level);
+    const pixels = me.data.pixelsPainted;
+    if (dropletsValue) {
       dropletsValue.textContent = `${me.data.droplets}`;
     }
-    if (levelValue && me.data.level !== undefined) {
-      const level = Math.floor(me.data.level);
-      const percent = Math.floor((me.data.level - level) * 100.0);
-      const forCurrentLevel = levelPixels(level - 1);
-      const forNextLevel = levelPixels(level);
-      const pixels = me.data.pixelsPainted;
-      levelValue.textContent = `${level} (${percent}%/${pixels - forCurrentLevel}/${forNextLevel - forCurrentLevel}/${pixels - forNextLevel})`;
+    if (levelValue) {
+      levelValue.textContent = `${level} (${percent}% ${pixels - forNextLevel}/${pixels - forCurrentLevel}/${forNextLevel - forCurrentLevel})`;
     }
+    if (smallStats) {
+      smallStats.textContent = `(${me.data.droplets}💧| ${pixels - forNextLevel}/${pixels - forCurrentLevel}/${forNextLevel - forCurrentLevel})`;
+    }
+  }
+
+  if (smallStats) {
+    smallStats.style = collapsed ? '' : 'display: none;';
   }
 
   // --- Mode Tabs ---
