@@ -92,6 +92,15 @@ export function matchPixelUrl(urlStr: string) {
   } catch { return null; }
 }
 
+export function matchMeUrl(urlStr: string) {
+  try {
+    const u = new URL(urlStr, location.href);
+    if (u.hostname !== 'backend.wplace.live') return null;
+    if (u.pathname !== '/me') return null;
+    return true;
+  } catch { return null; }
+}
+
 export function rectIntersect(ax: number, ay: number, aw: number, ah: number, bx: number, by: number, bw: number, bh: number) {
   const x = Math.max(ax, bx), y = Math.max(ay, by);
   const r = Math.min(ax + aw, bx + bw), b = Math.min(ay + ah, by + bh);

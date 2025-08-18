@@ -25,6 +25,8 @@ export type Config = {
   panelX: number | null;
   panelY: number | null;
   theme: 'light' | 'dark';
+  collapseStats: boolean;
+  collapseMode: boolean;
   collapseList: boolean;
   collapseEditor: boolean;
   collapsePositioning: boolean;
@@ -44,6 +46,8 @@ export const config: Config = {
   panelX: null,
   panelY: null,
   theme: 'light',
+  collapseStats: false,
+  collapseMode: false,
   collapseList: false,
   collapseEditor: false,
   collapsePositioning: false,
@@ -51,6 +55,10 @@ export const config: Config = {
   ccPaidKeys: DEFAULT_PAID_KEYS.slice(),
   ccZoom: 1.0,
   ccRealtime: false,
+};
+
+export const me: { data: any } = {
+  data: { }
 };
 
 export const CONFIG_KEYS = Object.keys(config) as (keyof Config)[];

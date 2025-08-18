@@ -1,8 +1,9 @@
 /// <reference types="tampermonkey" />
 import { NATIVE_FETCH } from './gm';
-import { config, saveConfig } from './store';
-import { matchTileUrl, matchPixelUrl, extractPixelCoords, buildOverlayDataForChunkUnified, composeTileUnified } from './overlay';
+import { config, me, saveConfig } from './store';
+import { matchTileUrl, matchPixelUrl, extractPixelCoords, buildOverlayDataForChunkUnified, composeTileUnified, matchMeUrl } from './overlay';
 import { emit, EV_ANCHOR_SET, EV_AUTOCAP_CHANGED } from './events';
+import { updateUI } from '../ui/panel';
 
 let hookInstalled = false;
 let updateUICallback: null | (() => void) = null;
@@ -23,7 +24,7 @@ export function overlaysNeedingHook() {
   return needsHookMode && (hasImage || placing) && config.overlays.length > 0;
 }
 
-export function ensureHook() { if (overlaysNeedingHook()) attachHook(); else detachHook(); }
+export function ensureHook() { attachHook(); }
 
 export function attachHook() {
   if (hookInstalled) return;
@@ -31,6 +32,35 @@ export function attachHook() {
 
   const hookedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const urlStr = typeof input === 'string' ? input : ((input as Request).url) || '';
+
+    const meMatch = matchMeUrl(urlStr);
+    if (meMatch) {
+      try {
+        const response = await originalFetch(input as any, init as any);
+        if (!response.ok) return response;
+
+        const ct = (response.headers.get('Content-Type') || '').toLowerCase();
+        if (!ct.includes('application/json')) return response;
+
+        const json = await response.json();
+        me.data = json;
+
+        updateUI();
+
+        return new Response(new Blob([JSON.stringify(json)]), {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers
+        });
+      } catch (e) {
+        console.error("Overlay Pro: Error processing me", e);
+        return originalFetch(input as any, init as any);
+      }
+    }
+
+    if (!overlaysNeedingHook()) {
+      return originalFetch(input as any, init as any);
+    }
 
     // Anchor auto-capture: watch pixel endpoint, then store/normalize
     if (config.autoCapturePixelUrl && config.activeOverlayId) {

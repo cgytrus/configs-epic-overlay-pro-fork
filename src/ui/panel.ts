@@ -1,5 +1,5 @@
 /// <reference types="tampermonkey" />
-import { config, saveConfig, getActiveOverlay, applyTheme } from '../core/store';
+import { config, me, saveConfig, getActiveOverlay, applyTheme } from '../core/store';
 import { ensureHook } from '../core/hook';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
@@ -36,6 +36,27 @@ export function createUI() {
         </div>
       </div>
       <div class="op-content" id="op-content">
+        <div class="op-section">
+          <div class="op-section-title">
+            <div class="op-title-left">
+              <span class="op-title-text">Statistics</span>
+            </div>
+            <div class="op-title-right">
+                <button class="op-chevron" id="op-collapse-stats" title="Collapse/Expand">▾</button>
+            </div>
+          </div>
+          <div id="op-stats-body">
+            <div class="op-row">
+              <div>Droplets:</div>
+              <div id="op-droplets-value">idk :&lt;</div>
+            </div>
+            <div class="op-row">
+              <div>Level:</div>
+              <div id="op-level-value">idk :&lt;</div>
+            </div>
+          </div>
+        </div>
+
         <div class="op-section" id="op-mode-section">
           <div class="op-section-title">
             <div class="op-title-left">
@@ -46,20 +67,20 @@ export function createUI() {
             </div>
           </div>
           <div id="op-mode-body">
-          <div class="op-row op-tabs">
-            <button class="op-tab-btn" data-mode="above">Full Overlay</button>
-            <button class="op-tab-btn" data-mode="minify">Mini-pixel</button>
-            <button class="op-tab-btn" data-mode="original">Disabled</button>
-          </div>
-          <div id="op-mode-settings">
-            <div class="op-mode-setting" data-setting="above">
+            <div class="op-row op-tabs">
+              <button class="op-tab-btn" data-mode="above">Full Overlay</button>
+              <button class="op-tab-btn" data-mode="minify">Mini-pixel</button>
+              <button class="op-tab-btn" data-mode="original">Disabled</button>
+            </div>
+            <div id="op-mode-settings">
+              <div class="op-mode-setting" data-setting="above">
                 <div class="op-row"><label>Layering</label><div id="op-layering-btns"></div></div>
                 <div class="op-row"><label style="width: 60px;">Opacity</label><input type="range" min="0" max="1" step="0.05" class="op-slider op-grow" id="op-opacity-slider"><span id="op-opacity-value" style="width: 36px; text-align: right;">70%</span></div>
-            </div>
-            <div class="op-mode-setting" data-setting="minify">
-              <div class="op-row"><label>Style</label>
-                <div class="op-row"><input type="radio" name="minify-style" value="dots" id="op-style-dots"><label for="op-style-dots">Dots</label></div>
-                <div class="op-row"><input type="radio" name="minify-style" value="symbols" id="op-style-symbols"><label for="op-style-symbols">Symbols (slow and buggy, wait 4 fix!)</label></div>
+              </div>
+              <div class="op-mode-setting" data-setting="minify">
+                <div class="op-row"><label>Style</label>
+                  <div class="op-row"><input type="radio" name="minify-style" value="dots" id="op-style-dots"><label for="op-style-dots">Dots</label></div>
+                  <div class="op-row"><input type="radio" name="minify-style" value="symbols" id="op-style-symbols"><label for="op-style-symbols">Symbols (slow and buggy, wait 4 fix!)</label></div>
                 </div>
               </div>
             </div>
@@ -350,6 +371,7 @@ function addEventListeners(panel: HTMLDivElement) {
   $('op-add-overlay').addEventListener('click', async () => { try { await addBlankOverlay(); } catch (e) { console.error(e); } });
   $('op-import-overlay').addEventListener('click', async () => { const text = prompt('Paste overlay JSON (single or array) or link:'); if (!text) return; await importOverlayFromJSON(text); });
   $('op-export-overlay').addEventListener('click', () => exportActiveOverlayToClipboard());
+  $('op-collapse-stats').addEventListener('click', () => { config.collapseStats = !config.collapseStats; saveConfig(['collapseStats']); updateUI(); });
   $('op-collapse-mode').addEventListener('click', () => { config.collapseMode = !config.collapseMode; saveConfig(['collapseMode']); updateUI(); });
   $('op-collapse-list').addEventListener('click', () => { config.collapseList = !config.collapseList; saveConfig(['collapseList']); updateUI(); });
   $('op-collapse-editor').addEventListener('click', () => { config.collapseEditor = !config.collapseEditor; saveConfig(['collapseEditor']); updateUI(); });
@@ -527,6 +549,10 @@ export function updateThemeToggle() {
   themeToggle.textContent = config.theme === 'dark' ? '☀️' : '🌙';
 }
 
+function levelPixels(level) {
+  return Math.ceil(Math.pow(level * Math.pow(30, 0.65), 1 / 0.65));
+}
+
 export function updateUI() {
   if (!panelEl) return;
 
@@ -541,6 +567,27 @@ export function updateUI() {
   toggle.textContent = collapsed ? '▸' : '▾';
   toggle.title = collapsed ? 'Expand' : 'Collapse';
   header.style = collapsed ? 'border-bottom: none;' : undefined;
+
+  // stats
+  const statsBody = $('op-stats-body');
+  const statsCz = $('op-collapse-stats');
+  const dropletsValue = $('op-droplets-value');
+  const levelValue = $('op-level-value');
+  if (statsBody) statsBody.style.display = config.collapseStats ? 'none' : 'block';
+  if (statsCz) statsCz.textContent = config.collapseStats ? '▸' : '▾';
+  if (me.data) {
+    if (dropletsValue && me.data.droplets !== undefined) {
+      dropletsValue.textContent = `${me.data.droplets}`;
+    }
+    if (levelValue && me.data.level !== undefined) {
+      const level = Math.floor(me.data.level);
+      const percent = Math.floor((me.data.level - level) * 100.0);
+      const forCurrentLevel = levelPixels(level - 1);
+      const forNextLevel = levelPixels(level);
+      const pixels = me.data.pixelsPainted;
+      levelValue.textContent = `${level} (${percent}%/${pixels - forCurrentLevel}/${forNextLevel - forCurrentLevel}/${pixels - forNextLevel})`;
+    }
+  }
 
   // --- Mode Tabs ---
   panelEl.querySelectorAll('.op-tab-btn').forEach(btn => {
