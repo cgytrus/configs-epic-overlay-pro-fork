@@ -4,6 +4,7 @@ import { matchPixelUrl, extractPixelCoords, matchMeUrl, updateOverlays } from '.
 import { emit, EV_ANCHOR_SET, EV_AUTOCAP_CHANGED } from './events';
 import { updateUI } from '../ui/panel';
 import { type Map } from 'maplibre-gl';
+import { findExport, findModule, moduleFilters } from './modules';
 
 let hookInstalled = false;
 let updateUICallback: null | (() => void) = null;
@@ -19,12 +20,6 @@ export function getUpdateUI() {
 
 export let map: Map | null = null;
 
-async function mapCreated(x: Map) {
-  map = x;
-  page.map = x;
-  await updateOverlays();
-}
-
 export function attachHook() {
   if (!map) {
     page.PromiseOrig = page.Promise;
@@ -33,7 +28,11 @@ export function attachHook() {
         super(executor);
         if (!executor.toString().includes('maps.wplace.live'))
           return;
-        this.then(async (x: Map) => await mapCreated(x));
+        this.then(async (x: Map) => {
+          map = x;
+          page._map = x;
+          await updateOverlays();
+        });
         page.Promise = page.PromiseOrig;
         page.PromiseOrig = undefined;
       }
@@ -42,6 +41,21 @@ export function attachHook() {
 
   if (hookInstalled)
     return;
+
+  findModule(moduleFilters['backend']).then(x => {
+    const u = findExport(x, prop => prop && Object.getOwnPropertyNames(Object.getPrototypeOf(prop)).includes('cooldown'));
+    if (!u)
+      return;
+    const proto = Object.getPrototypeOf(u);
+    const cooldownOrig = Object.getOwnPropertyDescriptor(proto, 'cooldown');
+    Object.defineProperty(proto, 'cooldownOrig', cooldownOrig);
+    Object.defineProperty(proto, 'cooldown', {
+      get: function() {
+        return Math.ceil(cooldownOrig.get.call(this) / 1000.0) * 1000.0;
+      },
+      configurable: true
+    });
+  });
 
   const hookedFetch = (originalFetch: any) => async (input: RequestInfo | URL, init?: RequestInit) => {
     const urlStr = typeof input === 'string' ? input : ((input as Request).url) || '';
