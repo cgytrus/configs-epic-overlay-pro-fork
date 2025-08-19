@@ -1,17 +1,12 @@
 /// <reference types="tampermonkey" />
 import { WPLACE_FREE, WPLACE_PAID, WPLACE_NAMES, DEFAULT_FREE_KEYS } from '../core/palette';
-import { createCanvas } from '../core/canvas';
 import { config, saveConfig, type OverlayItem } from '../core/store';
 import { MAX_OVERLAY_DIM } from '../core/constants';
 import { clearOverlayCache, paletteDetectionCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { uid } from '../core/util';
 import { updateOverlays } from '../core/overlay';
-
-// dispatch when an overlay image is updated
-function emitOverlayChanged() {
-  document.dispatchEvent(new CustomEvent('op-overlay-changed'));
-}
+import { updateUI } from './panel';
 
 type CCState = {
   backdrop: HTMLDivElement;
@@ -183,9 +178,10 @@ export function buildCCModal() {
     // Mark the processed image as palette-perfect for optimization
     paletteDetectionCache.set(dataUrl, true);
     
-    await saveConfig(['overlays']); clearOverlayCache();
+    await saveConfig(['overlays']);
+    clearOverlayCache();
     await updateOverlays();
-    emitOverlayChanged();
+    updateUI();
     const uniqueColors = Object.keys(cc!.lastColorCounts).length;
     showToast(`Overlay updated (${cc!.processedCanvas.width}×${cc!.processedCanvas.height}, ${uniqueColors} colors).`);
     closeCCModal();

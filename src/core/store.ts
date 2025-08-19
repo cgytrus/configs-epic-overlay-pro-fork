@@ -1,4 +1,5 @@
 /// <reference types="tampermonkey" />
+import { TILE_SIZE } from './constants';
 import { gmGet, gmSet } from './gm';
 import { DEFAULT_FREE_KEYS, DEFAULT_PAID_KEYS } from './palette';
 
@@ -10,9 +11,8 @@ export type OverlayItem = {
   imageBase64: string | null;
   imageId: string;
   isLocal: boolean;
-  pixelUrl: string | null;
-  offsetX: number;
-  offsetY: number;
+  x: number;
+  y: number;
   opacity: number;
 };
 
@@ -22,7 +22,6 @@ export type Config = {
   overlayLayering: 'behind' | 'above' | 'top';
   overlayStyle: 'full' | 'dots' | 'none';
   isPanelCollapsed: boolean;
-  autoCapturePixelUrl: boolean;
   panelX: number | null;
   panelY: number | null;
   theme: 'light' | 'dark';
@@ -30,7 +29,6 @@ export type Config = {
   collapseMode: boolean;
   collapseList: boolean;
   collapseEditor: boolean;
-  collapsePositioning: boolean;
   ccFreeKeys: string[];
   ccPaidKeys: string[];
   ccZoom: number;
@@ -43,7 +41,6 @@ export const config: Config = {
   overlayLayering: 'top',
   overlayStyle: 'dots',
   isPanelCollapsed: false,
-  autoCapturePixelUrl: false,
   panelX: null,
   panelY: null,
   theme: 'light',
@@ -51,7 +48,6 @@ export const config: Config = {
   collapseMode: false,
   collapseList: false,
   collapseEditor: false,
-  collapsePositioning: false,
   ccFreeKeys: DEFAULT_FREE_KEYS.slice(),
   ccPaidKeys: DEFAULT_PAID_KEYS.slice(),
   ccZoom: 1.0,
@@ -65,6 +61,29 @@ export async function loadConfig() {
     await Promise.all(CONFIG_KEYS.map(async k => {
       (config as any)[k] = await gmGet(k as string, (config as any)[k]);
     }));
+    for (const ov of config.overlays) {
+      try {
+        if ((ov as any).pixelUrl) {
+          const u = new URL((ov as any).pixelUrl);
+          const parts = u.pathname.split('/');
+          const sp = new URLSearchParams(u.search);
+          ov.x = parseInt(parts[3], 10) * TILE_SIZE + parseInt(sp.get('x') || '0', 10);
+          ov.y = parseInt(parts[4], 10) * TILE_SIZE + parseInt(sp.get('y') || '0', 10);
+          //(ov as any).pixelUrl = undefined;
+        }
+        if ((ov as any).offsetX) {
+          ov.x += (ov as any).offsetX;
+          //(ov as any).offsetX = undefined;
+        }
+        if ((ov as any).offsetY) {
+          ov.y += (ov as any).offsetY;
+          //(ov as any).offsetX = undefined;
+        }
+      }
+      catch (e) {
+        console.error(e);
+      }
+    }
     if (!Array.isArray(config.ccFreeKeys) || config.ccFreeKeys.length === 0) config.ccFreeKeys = DEFAULT_FREE_KEYS.slice();
     if (!Array.isArray(config.ccPaidKeys)) config.ccPaidKeys = DEFAULT_PAID_KEYS.slice();
     if (!Number.isFinite(config.ccZoom) || config.ccZoom <= 0) config.ccZoom = 1.0;

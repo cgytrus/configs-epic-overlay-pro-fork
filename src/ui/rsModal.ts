@@ -1,16 +1,12 @@
 /// <reference types="tampermonkey" />
 import { createCanvas, createHTMLCanvas, canvasToDataURLSafe, loadImage } from '../core/canvas';
-import { config, saveConfig, type OverlayItem } from '../core/store';
+import { saveConfig, type OverlayItem } from '../core/store';
 import { MAX_OVERLAY_DIM } from '../core/constants';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { uid } from '../core/util';
 import { updateOverlays } from '../core/overlay';
-
-// dispatch when an overlay image is updated
-function emitOverlayChanged() {
-  document.dispatchEvent(new CustomEvent('op-overlay-changed'));
-}
+import { updateUI } from './panel';
 
 type RSRefs = {
   backdrop: HTMLDivElement;
@@ -769,7 +765,7 @@ export function buildRSModal() {
         await saveConfig(['overlays']);
         clearOverlayCache();
         await updateOverlays();
-        emitOverlayChanged();
+        updateUI();
         closeRSModal();
         showToast(`Applied ${rs!.calcCols}×${rs!.calcRows}.`);
       }
@@ -969,5 +965,5 @@ async function resizeOverlayImage(ov: OverlayItem, targetW: number, targetH: num
   await saveConfig(['overlays']);
   clearOverlayCache();
   await updateOverlays();
-  emitOverlayChanged();
+  updateUI();
 }

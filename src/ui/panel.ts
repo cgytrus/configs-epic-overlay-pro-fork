@@ -3,12 +3,11 @@ import { config, saveConfig, getActiveOverlay, applyTheme, type OverlayItem } fr
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { urlToDataURL, fileToDataURL, gmFetchJson } from '../core/gm';
-import { uniqueName, uid } from '../core/util';
-import { extractPixelCoords, updateOverlays } from '../core/overlay';
+import { uniqueName, uid, lonLatToPixel } from '../core/util';
+import {  updateOverlays } from '../core/overlay';
 import { buildCCModal, openCCModal } from './ccModal';
 import { buildRSModal, openRSModal } from './rsModal';
-import { EV_ANCHOR_SET, EV_AUTOCAP_CHANGED } from '../core/events';
-import { user } from '../core/hook';
+import { menu, user } from '../core/hook';
 
 let panelEl: HTMLDivElement | null = null;
 
@@ -82,37 +81,6 @@ export function createUI() {
           </div>
         </div>
 
-        <div class="op-section" id="op-positioning-section">
-            <div class="op-section-title">
-                <div class="op-title-left">
-                    <span class="op-title-text">Positioning</span>
-                </div>
-                <div class="op-title-right">
-                    <button class="op-chevron" id="op-collapse-positioning" title="Collapse/Expand">▾</button>
-                </div>
-            </div>
-            <div id="op-positioning-body">
-                <div class="op-row-col">
-                    <div class="op-row space-between">
-                        <span class="op-muted" id="op-place-label">Place overlay:</span>
-                        <span class="op-muted" id="op-offset-indicator">Offset X 0, Y 0</span>
-                    </div>
-                </div>
-                <div class="op-row">
-                    <button class="op-button" id="op-autocap-toggle" title="Capture next clicked pixel as anchor">Disabled</button>
-                    <div class="op-nudge-row" style="margin-left:auto;">
-                        <button class="op-icon-btn" id="op-nudge-left" title="Left">←</button>
-                        <button class="op-icon-btn" id="op-nudge-down" title="Down">↓</button>
-                        <button class="op-icon-btn" id="op-nudge-up" title="Up">↑</button>
-                        <button class="op-icon-btn" id="op-nudge-right" title="Right">→</button>
-                    </div>
-                </div>
-                <div class="op-row center">
-                    <div class="op-small-text">Click a pixel on the canvas to set the anchor.</div>
-                </div>
-            </div>
-        </div>
-
         <div class="op-section">
           <div class="op-section-title">
             <div class="op-title-left">
@@ -146,6 +114,7 @@ export function createUI() {
             <div class="op-row">
               <label style="width: 90px;">Name</label>
               <input type="text" class="op-input op-grow" id="op-name">
+              <button class="op-button" id="op-move-overlay" title="Move overlay to currently selected pixel">Move</button>
             </div>
 
             <div id="op-image-source">
@@ -182,15 +151,6 @@ export function createUI() {
   addEventListeners(panel);
   enableDrag(panel);
   updateUI();
-
-  // Core → UI events
-  document.addEventListener('op-overlay-changed', updateUI);
-  document.addEventListener(EV_ANCHOR_SET, (ev: any) => {
-    const d = ev?.detail || {};
-    showToast(`Anchor set for "${d.name ?? 'overlay'}": chunk ${d.chunk1}/${d.chunk2} at (${d.posX}, ${d.posY}). Offset reset to (0,0).`);
-    updateUI();
-  });
-  document.addEventListener(EV_AUTOCAP_CHANGED, () => updateUI());
 }
 
 function rebuildOverlayListUI() {
@@ -229,13 +189,19 @@ function rebuildOverlayListUI() {
 }
 
 async function addBlankOverlay() {
+  if (!menu.latLon) {
+    showToast('Select a pixel to place the overlay on first!', 'error', 5000);
+    return;
+  }
+  const [ x, y ] = lonLatToPixel(menu.latLon[1], menu.latLon[0]);
   const name = uniqueName('Overlay', config.overlays.map(o => o.name || ''));
-  const ov = { id: uid(), name, enabled: true, imageUrl: null, imageBase64: null, imageId: uid(), isLocal: false, pixelUrl: null, offsetX: 0, offsetY: 0, opacity: 0.7 };
+  const ov = { id: uid(), name, enabled: true, imageUrl: null, imageBase64: null, imageId: uid(), isLocal: false, x, y, opacity: 0.7 };
   config.overlays.push(ov);
   config.activeOverlayId = ov.id;
   await saveConfig(['overlays', 'activeOverlayId']);
-  clearOverlayCache(); updateUI();
+  clearOverlayCache();
   await updateOverlays();
+  updateUI();
   return ov;
 }
 
@@ -244,7 +210,6 @@ async function setOverlayImageFromURL(ov: OverlayItem, url: string) {
   ov.imageUrl = url; ov.imageBase64 = base64; ov.isLocal = false;
   ov.imageId = uid();
   await saveConfig(['overlays']); clearOverlayCache();
-  config.autoCapturePixelUrl = true; await saveConfig(['autoCapturePixelUrl']);
   updateUI();
   await updateOverlays();
   showToast(`Image loaded. Placement mode ON -- click once to set anchor.`);
@@ -256,7 +221,6 @@ async function setOverlayImageFromFile(ov: OverlayItem, file: File) {
   ov.imageBase64 = base64; ov.imageUrl = null; ov.isLocal = true;
   ov.imageId = uid();
   await saveConfig(['overlays']); clearOverlayCache();
-  config.autoCapturePixelUrl = true; await saveConfig(['autoCapturePixelUrl']);
   updateUI();
   await updateOverlays();
   showToast(`Local image loaded. Placement mode ON -- click once to set anchor.`);
@@ -299,25 +263,31 @@ async function importOverlayFromJSON(jsonText: string) {
           continue;
         }
       }
-      override.pixelUrl = item.pixelUrl !== undefined ? item.pixelUrl : override.pixelUrl;
-      override.offsetX = item.offsetX !== undefined ? item.offsetX : override.offsetX;
-      override.offsetY = item.offsetY !== undefined ? item.offsetY : override.offsetY;
+      override.x = item.x !== undefined ? item.x : override.x;
+      override.y = item.y !== undefined ? item.y : override.y;
       override.opacity = item.opacity !== undefined ? item.opacity : override.opacity;
       imported++;
     }
     else {
       const name = uniqueName(item.name || 'Imported Overlay', config.overlays.map(o => o.name || ''));
       const imageUrl = item.imageUrl;
-      const pixelUrl = item.pixelUrl ?? null;
-      const offsetX = Number.isFinite(item.offsetX) ? item.offsetX : 0;
-      const offsetY = Number.isFinite(item.offsetY) ? item.offsetY : 0;
+      const x = Number.isFinite(item.x) ? item.x : 0;
+      const y = Number.isFinite(item.y) ? item.y : 0;
       const opacity = Number.isFinite(item.opacity) ? item.opacity : 0.7;
-      if (!imageUrl) { failed++; continue; }
+      if (!imageUrl) {
+        failed++;
+        continue;
+      }
       try {
         const base64 = await urlToDataURL(imageUrl);
-        const ov = { id: uid(), name, enabled: true, imageUrl, imageBase64: base64, imageId: uid(), isLocal: false, pixelUrl, offsetX, offsetY, opacity };
-        config.overlays.push(ov); imported++;
-      } catch (e) { console.error('Import failed for', imageUrl, e); failed++; }
+        const ov = { id: uid(), name, enabled: true, imageUrl, imageBase64: base64, imageId: uid(), isLocal: false, x, y, opacity };
+        config.overlays.push(ov);
+        imported++;
+      }
+      catch (e) {
+        console.error('Import failed for', imageUrl, e);
+        failed++;
+      }
     }
   }
   if (imported > 0) {
@@ -336,9 +306,8 @@ function exportActiveOverlayToClipboard() {
     version: 1,
     name: ov.name,
     imageUrl: ov.imageUrl,
-    pixelUrl: ov.pixelUrl ?? null,
-    offsetX: ov.offsetX == 0 ? undefined : ov.offsetX,
-    offsetY: ov.offsetY == 0 ? undefined : ov.offsetY,
+    x: ov.x == 0 ? undefined : ov.x,
+    y: ov.y == 0 ? undefined : ov.y,
     opacity: ov.opacity == 0.7 ? undefined : ov.opacity
   };
   const text = JSON.stringify(payload, null, 2);
@@ -364,8 +333,6 @@ function addEventListeners(panel: HTMLDivElement) {
     });
   });
 
-  $('op-autocap-toggle').addEventListener('click', () => { config.autoCapturePixelUrl = !config.autoCapturePixelUrl; saveConfig(['autoCapturePixelUrl']); updateUI(); });
-
   $('op-add-overlay').addEventListener('click', async () => { try { await addBlankOverlay(); } catch (e) { console.error(e); } });
   $('op-import-overlay').addEventListener('click', async () => { const text = prompt('Paste overlay JSON (single or array) or link:'); if (!text) return; await importOverlayFromJSON(text); });
   $('op-export-overlay').addEventListener('click', () => exportActiveOverlayToClipboard());
@@ -373,7 +340,6 @@ function addEventListeners(panel: HTMLDivElement) {
   $('op-collapse-mode').addEventListener('click', () => { config.collapseMode = !config.collapseMode; saveConfig(['collapseMode']); updateUI(); });
   $('op-collapse-list').addEventListener('click', () => { config.collapseList = !config.collapseList; saveConfig(['collapseList']); updateUI(); });
   $('op-collapse-editor').addEventListener('click', () => { config.collapseEditor = !config.collapseEditor; saveConfig(['collapseEditor']); updateUI(); });
-  $('op-collapse-positioning').addEventListener('click', () => { config.collapsePositioning = !config.collapsePositioning; saveConfig(['collapsePositioning']); updateUI(); });
 
   $('op-name').addEventListener('change', async (e: any) => {
     const ov = getActiveOverlay(); if (!ov) return;
@@ -410,23 +376,24 @@ function addEventListeners(panel: HTMLDivElement) {
     try { await setOverlayImageFromFile(ov, file); } catch (err) { console.error(err); alert('Failed to load dropped image.'); }
   });
 
-  const nudge = async (dx: number, dy: number) => {
-    const ov = getActiveOverlay(); if (!ov) return;
-    ov.offsetX += dx; ov.offsetY += dy;
-    await saveConfig(['overlays']); clearOverlayCache(); updateUI();
-    await updateOverlays();
-  };
-  $('op-nudge-up').addEventListener('click', () => nudge(0, -1));
-  $('op-nudge-down').addEventListener('click', () => nudge(0, 1));
-  $('op-nudge-left').addEventListener('click', () => nudge(-1, 0));
-  $('op-nudge-right').addEventListener('click', () => nudge(1, 0));
-
   $('op-opacity-slider').addEventListener('input', (e: any) => {
     const ov = getActiveOverlay(); if (!ov) return;
     ov.opacity = parseFloat(e.target.value);
     $('op-opacity-value').textContent = Math.round(ov.opacity * 100) + '%';
   });
   $('op-opacity-slider').addEventListener('change', async () => { await saveConfig(['overlays']); clearOverlayCache(); await updateOverlays(); });
+
+  $('op-move-overlay').addEventListener('click', async () => {
+    if (!menu.latLon) {
+      showToast('Select a pixel to move to first!', 'error', 5000);
+      return;
+    }
+    const ov = getActiveOverlay();
+    [ ov.x, ov.y ] = lonLatToPixel(menu.latLon[1], menu.latLon[0]);
+    await saveConfig(['overlays']);
+    clearOverlayCache();
+    await updateOverlays();
+  });
 
   $('op-download-overlay').addEventListener('click', () => {
     const ov = getActiveOverlay();
@@ -527,17 +494,10 @@ function updateEditorUI() {
     ( $('op-image-url') as HTMLInputElement ).value = ov.imageUrl || '';
   }
 
-  const coords = ov.pixelUrl ? extractPixelCoords(ov.pixelUrl) : { chunk1: '-', chunk2: '-', posX: '-', posY: '-' } as any;
   const coordDisplay = $('op-coord-display');
-  if(coordDisplay) {
-    coordDisplay.textContent = ov.pixelUrl
-      ? `Ref: chunk ${coords.chunk1}/${coords.chunk2} at (${coords.posX}, ${coords.posY})`
-      : `No pixel anchor set. Enable placement and click a pixel.`;
+  if (coordDisplay) {
+    coordDisplay.textContent = `Ref: (${ov.x}, ${ov.y})`;
   }
-  
-
-  const indicator = $('op-offset-indicator');
-  if (indicator) indicator.textContent = `Offset X ${ov.offsetX}, Y ${ov.offsetY}`;
 
   editorBody.style.display = config.collapseEditor ? 'none' : 'block';
   const chevron = $('op-collapse-editor');
@@ -642,18 +602,6 @@ export function updateUI() {
     });
     layeringBtns.appendChild(button);
   }
-
-  // --- Positioning Section ---
-  const autoBtn = $('op-autocap-toggle');
-  const placeLabel = $('op-place-label');
-  autoBtn.textContent = config.autoCapturePixelUrl ? 'Enabled' : 'Disabled';
-  autoBtn.classList.toggle('op-danger', !!config.autoCapturePixelUrl);
-  if(placeLabel) placeLabel.classList.toggle('op-danger-text', !!config.autoCapturePixelUrl);
-
-  const positioningBody = $('op-positioning-body');
-  const positioningCz = $('op-collapse-positioning');
-  if(positioningBody) positioningBody.style.display = config.collapsePositioning ? 'none' : 'block';
-  if (positioningCz) positioningCz.textContent = config.collapsePositioning ? '▸' : '▾';
 
   const listWrap = $('op-list-wrap');
   const listCz = $('op-collapse-list');

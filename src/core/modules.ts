@@ -2,15 +2,8 @@ const chunks = [];
 const moduleSearches: { filter: (module: any) => boolean, resolve: (value: unknown) => any }[] = [];
 
 export const moduleFilters = {
-  'backend': (module: any) => {
-    if (!module)
-      return false;
-    return !!findExport(module, prop => {
-      if (!prop)
-        return false;
-      return prop && prop.url && prop.url.includes && prop.url.includes('backend.wplace.live');
-    });
-  }
+  'backend': (module: any) => module && findExport(module, prop => prop && prop.url && prop.url.includes && prop.url.includes('backend.wplace.live')),
+  'svelte': (module: any) => module && findExport(module, prop => prop && prop.toString && prop.toString().includes('window.__svelte'))
 }
 
 export function findModule(filter: (module: any) => boolean) {
@@ -29,18 +22,23 @@ export function findModule(filter: (module: any) => boolean) {
   });
 }
 
-export function findExport(module: any, filter: (prop: any) => boolean) {
+export function findExportName(module: any, filter: (prop: any) => boolean) {
   let res = null;
   for (const prop in module) {
     if (!filter(module[prop]))
       continue;
     if (res) {
-      console.warn('multiple props found that match the same filter!', filter, res, module[prop]);
+      console.warn('multiple props found that match the same filter!', filter, module[res], module[prop]);
       continue;
     }
-    res = module[prop];
+    res = prop;
   }
   return res;
+}
+
+export function findExport(module: any, filter: (prop: any) => boolean) {
+  const res = findExportName(module, filter);
+  return res ? module[res] : res;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
