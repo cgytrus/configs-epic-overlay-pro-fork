@@ -1,5 +1,5 @@
 /// <reference types="tampermonkey" />
-import { config, me, saveConfig, getActiveOverlay, applyTheme, type OverlayItem } from '../core/store';
+import { config, saveConfig, getActiveOverlay, applyTheme, type OverlayItem } from '../core/store';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { urlToDataURL, fileToDataURL, gmFetchJson } from '../core/gm';
@@ -8,6 +8,7 @@ import { extractPixelCoords, updateOverlays } from '../core/overlay';
 import { buildCCModal, openCCModal } from './ccModal';
 import { buildRSModal, openRSModal } from './rsModal';
 import { EV_ANCHOR_SET, EV_AUTOCAP_CHANGED } from '../core/events';
+import { user } from '../core/hook';
 
 let panelEl: HTMLDivElement | null = null;
 
@@ -577,20 +578,31 @@ export function updateUI() {
   const smallStats = $('op-small-stats');
   if (statsBody) statsBody.style.display = config.collapseStats ? 'none' : 'block';
   if (statsCz) statsCz.textContent = config.collapseStats ? '▸' : '▾';
-  if (me.data) {
-    const level = Math.floor(me.data.level);
-    const percent = Math.floor((me.data.level - level) * 100.0);
+  if (user && user.data) {
+    const level = Math.floor(user.data.level);
+    const percent = Math.floor((user.data.level - level) * 100.0);
     const forCurrentLevel = levelPixels(level - 1);
     const forNextLevel = levelPixels(level);
-    const pixels = me.data.pixelsPainted;
+    const pixels = user.data.pixelsPainted;
     if (dropletsValue) {
-      dropletsValue.textContent = `${me.data.droplets}`;
+      dropletsValue.textContent = `${user.data.droplets}`;
     }
     if (levelValue) {
       levelValue.textContent = `${level} (${percent}% ${pixels - forNextLevel}/${pixels - forCurrentLevel}/${forNextLevel - forCurrentLevel})`;
     }
     if (smallStats) {
-      smallStats.textContent = `(${me.data.droplets}💧| ${pixels - forNextLevel}/${pixels - forCurrentLevel}/${forNextLevel - forCurrentLevel})`;
+      smallStats.textContent = `(${user.data.droplets}💧| ${pixels - forNextLevel}/${pixels - forCurrentLevel}/${forNextLevel - forCurrentLevel})`;
+    }
+  }
+  else {
+    if (dropletsValue) {
+      dropletsValue.textContent = 'idk :<';
+    }
+    if (levelValue) {
+      levelValue.textContent = 'idk :<';
+    }
+    if (smallStats) {
+      smallStats.textContent = '(offline or logged out)';
     }
   }
 

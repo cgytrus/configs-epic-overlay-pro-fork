@@ -1,6 +1,6 @@
 /// <reference types="tampermonkey" />
-import { config, me, saveConfig } from './store';
-import { matchPixelUrl, extractPixelCoords, matchMeUrl, updateOverlays } from './overlay';
+import { config, saveConfig } from './store';
+import { matchPixelUrl, extractPixelCoords, updateOverlays } from './overlay';
 import { emit, EV_ANCHOR_SET, EV_AUTOCAP_CHANGED } from './events';
 import { updateUI } from '../ui/panel';
 import { type Map } from 'maplibre-gl';
@@ -19,6 +19,7 @@ export function getUpdateUI() {
 }
 
 export let map: Map | null = null;
+export let user: any = null;
 
 export function attachHook() {
   if (!map) {
@@ -43,47 +44,31 @@ export function attachHook() {
     return;
 
   findModule(moduleFilters['backend']).then(x => {
-    const u = findExport(x, prop => prop && Object.getOwnPropertyNames(Object.getPrototypeOf(prop)).includes('cooldown'));
-    if (!u)
+    user = findExport(x, prop => prop && Object.getOwnPropertyNames(Object.getPrototypeOf(prop)).includes('cooldown'));
+    if (!user) {
+      console.warn('user property not found in backend module');
       return;
-    const proto = Object.getPrototypeOf(u);
-    const cooldownOrig = Object.getOwnPropertyDescriptor(proto, 'cooldown');
-    Object.defineProperty(proto, 'cooldownOrig', cooldownOrig);
-    Object.defineProperty(proto, 'cooldown', {
+    }
+    page._user = user;
+
+    const userProto = Object.getPrototypeOf(user);
+
+    const cooldownOrig = Object.getOwnPropertyDescriptor(userProto, 'cooldown');
+    Object.defineProperty(userProto, 'cooldownOrig', cooldownOrig);
+    Object.defineProperty(userProto, 'cooldown', {
       get: function() {
         return Math.ceil(cooldownOrig.get.call(this) / 1000.0) * 1000.0;
       },
       configurable: true
     });
+
+    new BroadcastChannel('user-channel').onmessage = () => {
+      updateUI();
+    };
   });
 
   const hookedFetch = (originalFetch: any) => async (input: RequestInfo | URL, init?: RequestInit) => {
     const urlStr = typeof input === 'string' ? input : ((input as Request).url) || '';
-
-    const meMatch = matchMeUrl(urlStr);
-    if (meMatch) {
-      try {
-        const response = await originalFetch(input as any, init as any);
-        if (!response.ok) return response;
-
-        const ct = (response.headers.get('Content-Type') || '').toLowerCase();
-        if (!ct.includes('application/json')) return response;
-
-        const json = await response.json();
-        me.data = json;
-
-        updateUI();
-
-        return new Response(new Blob([JSON.stringify(json)]), {
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers
-        });
-      } catch (e) {
-        console.error("Overlay Pro: Error processing me", e);
-        return originalFetch(input as any, init as any);
-      }
-    }
 
     // Anchor auto-capture: watch pixel endpoint, then store/normalize
     if (config.autoCapturePixelUrl && config.activeOverlayId) {

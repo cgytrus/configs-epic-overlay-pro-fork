@@ -38,15 +38,6 @@ export function matchPixelUrl(urlStr: string) {
   } catch { return null; }
 }
 
-export function matchMeUrl(urlStr: string) {
-  try {
-    const u = new URL(urlStr, location.href);
-    if (u.hostname !== 'backend.wplace.live') return null;
-    if (u.pathname !== '/me') return null;
-    return true;
-  } catch { return null; }
-}
-
 export async function decodeOverlayImage(imageBase64: string | null) {
   if (!imageBase64) return null;
   const key = imageBase64;

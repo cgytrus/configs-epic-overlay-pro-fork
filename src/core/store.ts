@@ -58,10 +58,6 @@ export const config: Config = {
   ccRealtime: false,
 };
 
-export const me: { data: any } = {
-  data: { }
-};
-
 export const CONFIG_KEYS = Object.keys(config) as (keyof Config)[];
 
 export async function loadConfig() {
