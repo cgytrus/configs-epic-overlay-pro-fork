@@ -220,7 +220,7 @@ async function setOverlayImageFromURL(ov: OverlayItem, url: string) {
   showToast(`Image loaded. Placement mode ON -- click once to set anchor.`);
 }
 async function setOverlayImageFromFile(ov: OverlayItem, file: File) {
-  if (!file || !file.type || !file.type.startsWith('image/')) { alert('Please choose an image file.'); return; }
+  if (!file || !file.type || !file.type.startsWith('image/')) { showToast('Please choose an image file.', 'error'); return; }
   if (!confirm('Local PNGs cannot be exported to friends! Are you sure?')) return;
   ov.image = await fileToDataURL(file);
   await saveConfig(['overlays']);
@@ -287,7 +287,7 @@ async function importOverlays(files: FileList) {
     await saveConfig(['overlays', 'activeOverlayId']); clearOverlayCache(); updateUI();
     await updateOverlays();
   }
-  alert(`Import finished. Imported: ${imported}${failed ? `, Failed: ${failed}` : ''}`);
+  showToast(`Import finished. Imported: ${imported}${failed ? `, Failed: ${failed}` : ''}`, 'info', 5000);
 }
 
 async function exportActiveOverlay() {
@@ -318,7 +318,7 @@ async function exportActiveOverlay() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    showToast('Exporting overlay!', 'success');
+    showToast(`Exported overlay '${ov.name}'!`, 'success');
   }
   catch (e) {
     showToast(`Failed to export overlay: ${e}`, 'error', 5000);
@@ -386,10 +386,10 @@ function addEventListeners(panel: HTMLDivElement) {
   });
 
   $('op-fetch').addEventListener('click', async () => {
-    const ov = getActiveOverlay(); if (!ov) { alert('No active overlay selected.'); return; }
-    if (ov.image) { alert('This overlay already has an image. Create a new overlay to change the image.'); return; }
-    const url = ( $('op-image-url') as HTMLInputElement ).value.trim(); if (!url) { alert('Enter an image link first.'); return; }
-    try { await setOverlayImageFromURL(ov, url); } catch (e) { console.error(e); alert('Failed to fetch image.'); }
+    const ov = getActiveOverlay(); if (!ov) { showToast('No active overlay selected.', 'error'); return; }
+    if (ov.image) { showToast('This overlay already has an image. Create a new overlay to change the image.', 'error', 5000); return; }
+    const url = ( $('op-image-url') as HTMLInputElement ).value.trim(); if (!url) { showToast('Enter an image link first.', 'error'); return; }
+    try { await setOverlayImageFromURL(ov, url); } catch (e) { console.error(e); showToast('Failed to fetch image.', 'error'); }
   });
 
   const dropzone = $('op-dropzone');
@@ -397,16 +397,16 @@ function addEventListeners(panel: HTMLDivElement) {
   $('op-file-input').addEventListener('change', async (e: any) => {
     const file = e.target.files && e.target.files[0]; e.target.value=''; if (!file) return;
     const ov = getActiveOverlay(); if (!ov) return;
-    if (ov.image) { alert('This overlay already has an image. Create a new overlay to change the image.'); return; }
-    try { await setOverlayImageFromFile(ov, file); } catch (err) { console.error(err); alert('Failed to load local image.'); }
+    if (ov.image) { showToast('This overlay already has an image. Create a new overlay to change the image.', 'error', 5000); return; }
+    try { await setOverlayImageFromFile(ov, file); } catch (err) { console.error(err); showToast('Failed to load local image.', 'error'); }
   });
   ['dragenter', 'dragover'].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('drop-highlight'); }));
   ['dragleave', 'drop'].forEach(evt => dropzone.addEventListener(evt, (e: any) => { e.preventDefault(); e.stopPropagation(); if (evt === 'dragleave' && e.target !== dropzone) return; dropzone.classList.remove('drop-highlight'); }));
   dropzone.addEventListener('drop', async (e: any) => {
     const dt = e.dataTransfer; if (!dt) return; const file = dt.files && dt.files[0]; if (!file) return;
     const ov = getActiveOverlay(); if (!ov) return;
-    if (ov.image) { alert('This overlay already has an image. Create a new overlay to change the image.'); return; }
-    try { await setOverlayImageFromFile(ov, file); } catch (err) { console.error(err); alert('Failed to load dropped image.'); }
+    if (ov.image) { showToast('This overlay already has an image. Create a new overlay to change the image.', 'error', 5000); return; }
+    try { await setOverlayImageFromFile(ov, file); } catch (err) { console.error(err); showToast('Failed to load dropped image.', 'error'); }
   });
 
   $('op-move-overlay').addEventListener('click', async () => {
