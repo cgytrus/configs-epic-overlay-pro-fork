@@ -68,3 +68,15 @@ async function blobToDataURL(blob: Blob) {
     fr.readAsDataURL(blob);
   });
 }
+
+export const transparentPattern = (() => {
+  const canvas = createCanvas(2, 2);
+  const ctx = canvas.getContext('2d')! as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
+  ctx.fillStyle = '#a0a0a04f';
+  ctx.fillRect(0, 0, 1, 1);
+  ctx.fillRect(1, 1, 1, 1);
+  ctx.fillStyle = '#5050504f';
+  ctx.fillRect(0, 1, 1, 1);
+  ctx.fillRect(1, 0, 1, 1);
+  return ctx.createPattern(canvas, 'repeat');
+})();

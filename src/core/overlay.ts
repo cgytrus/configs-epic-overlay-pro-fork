@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, canvasToDataURLSafe } from './canvas';
+import { createCanvas, loadImage, canvasToDataURLSafe, transparentPattern } from './canvas';
 import { MINIFY_SCALE, MAX_OVERLAY_DIM } from './constants';
 import { imageDecodeCache, tooLargeOverlays } from './cache';
 import { showToast } from './toast';
@@ -33,7 +33,7 @@ export async function decodeOverlayImage(imageBase64: string | null) {
   return img;
 }
 
-export async function buildOverlayDataForChunkUnified(
+export async function buildOverlayData(
   ov: OverlayItem,
   style: 'full' | 'dots'
 ) {
@@ -57,26 +57,30 @@ export async function buildOverlayDataForChunkUnified(
     pixelToLonLat(ov.x, ov.y + hImg),
   ];
 
+  const imgCanvas = createCanvas(wImg * 2, hImg * 2);
+  const imgCtx = imgCanvas.getContext('2d', { willReadFrequently: true })! as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
+  imgCtx.imageSmoothingEnabled = false;
+  imgCtx.fillStyle = transparentPattern;
+  imgCtx.fillRect(0, 0, wImg * 2, hImg * 2);
+  imgCtx.drawImage(img, 0, 0, wImg * 2, hImg * 2);
+
+  if (style == 'full')
+    return { url: await canvasToDataURLSafe(imgCanvas), coordinates };
+
   switch (style) {
-    case 'full': {
-      const canvas = createCanvas(wImg, hImg) as any;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-      ctx.drawImage(img as any, 0, 0);
-      return { url: await canvasToDataURLSafe(canvas), coordinates };
-    }
     case 'dots': {
       const scale = MINIFY_SCALE;
       const wScaled = wImg * scale;
       const hScaled = hImg * scale;
 
-      const canvas = createCanvas(wScaled, hScaled) as any;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+      const canvas = createCanvas(wScaled * 2, hScaled * 2);
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })! as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
       ctx.imageSmoothingEnabled = false;
 
       const center = Math.floor((scale - 1) / 2);
       for (let y = 0; y < hImg; y++) {
         for (let x = 0; x < wImg; x++) {
-          ctx.drawImage(img as any, x, y, 1, 1, x * scale + center, y * scale + center, 1, 1);
+          ctx.drawImage(imgCanvas, x * 2, y * 2, 2, 2, (x * scale + center) * 2, (y * scale + center) * 2, 2, 2);
         }
       }
 
@@ -115,7 +119,7 @@ export async function updateOverlays() {
         })[config.overlayLayering]);
       }
 
-      const image = await buildOverlayDataForChunkUnified(ov, config.overlayStyle as 'full' | 'dots');
+      const image = await buildOverlayData(ov, config.overlayStyle as 'full' | 'dots');
 
       if (existingSource) {
         existingSource.updateImage(image);
