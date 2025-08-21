@@ -37,10 +37,10 @@ export async function buildOverlayDataForChunkUnified(
   ov: OverlayItem,
   style: 'full' | 'dots'
 ) {
-  if (!ov?.enabled || !ov.imageBase64) return null;
+  if (!ov?.enabled || !ov.image) return null;
   if (tooLargeOverlays.has(ov.id)) return null;
 
-  const img = await decodeOverlayImage(ov.imageBase64);
+  const img = await decodeOverlayImage(ov.image);
   if (!img) return null;
 
   const wImg = img.width, hImg = img.height;
@@ -87,7 +87,7 @@ export async function buildOverlayDataForChunkUnified(
 
 const displayingOverlays = [];
 export async function updateOverlays() {
-  const currentOverlays = config.overlayStyle == 'none' ? [] : config.overlays.filter(o => o.enabled && o.imageBase64);
+  const currentOverlays = config.overlayStyle == 'none' ? [] : config.overlays.filter(o => o.enabled && o.image);
   for (const ov of displayingOverlays) {
     if (currentOverlays.includes(ov))
       continue;

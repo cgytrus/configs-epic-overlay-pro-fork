@@ -757,11 +757,7 @@ export function buildRSModal() {
         showToast(`Resized to ${W}×${H}.`);
       } else {
         if (!rs!.calcReady || !rs!.calcCanvas) { showToast('Calculate first.'); return; }
-        const dataUrl = await canvasToDataURLSafe(rs!.calcCanvas);
-        rs!.ov.imageBase64 = dataUrl;
-        rs!.ov.imageUrl = null;
-        rs!.ov.isLocal = true;
-        rs!.ov.imageId = uid();
+        rs!.ov.image = await canvasToDataURLSafe(rs!.calcCanvas);
         await saveConfig(['overlays']);
         clearOverlayCache();
         await updateOverlays();
@@ -944,7 +940,7 @@ async function reconstructViaGrid(img: HTMLImageElement, origW: number, origH: n
 }
 
 async function resizeOverlayImage(ov: OverlayItem, targetW: number, targetH: number) {
-  const img = await loadImage(ov.imageBase64);
+  const img = await loadImage(ov.image);
   const canvas = createHTMLCanvas(targetW, targetH);
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
   ctx.imageSmoothingEnabled = false;
@@ -957,11 +953,7 @@ async function resizeOverlayImage(ov: OverlayItem, targetW: number, targetH: num
     else { data[i+3] = 255; }
   }
   ctx.putImageData(id, 0, 0);
-  const dataUrl = canvas.toDataURL('image/png');
-  ov.imageBase64 = dataUrl;
-  ov.imageUrl = null;
-  ov.isLocal = true;
-  ov.imageId = uid();
+  ov.image = canvas.toDataURL('image/png');
   await saveConfig(['overlays']);
   clearOverlayCache();
   await updateOverlays();

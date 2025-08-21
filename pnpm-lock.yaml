@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@zip.js/zip.js':
+        specifier: ^2.7.72
+        version: 2.7.72
       maplibre-gl:
         specifier: 5.6.1
         version: 5.6.1
@@ -228,6 +231,10 @@ packages:
 
   '@types/tampermonkey@5.0.4':
     resolution: {integrity: sha512-HEJ0O5CkDZSwIgd9Zip4xM8o7gZC8zBmJuH1YEXNINIC+aCWEXD10pnpo3NQG5IWHx+Xr4fMSGq1jqeKXH2lpA==}
+
+  '@zip.js/zip.js@2.7.72':
+    resolution: {integrity: sha512-3/A4JwrgkvGBlCxtItjxs8HrNbuTAAl/zlGkV6tC5Fb5k5nk4x2Dqxwl/YnUys5Ch+QB01eJ8Q5K/J2uXfy9Vw==}
+    engines: {bun: '>=0.7.0', deno: '>=1.0.0', node: '>=16.5.0'}
 
   earcut@3.0.2:
     resolution: {integrity: sha512-X7hshQbLyMJ/3RPhyObLARM2sNxxmRALLKx1+NVFFnQ9gKzmCrxm9+uLIAdBcvc8FNLpctqlQ2V6AE92Ol9UDQ==}
@@ -450,6 +457,8 @@ snapshots:
       '@types/geojson': 7946.0.16
 
   '@types/tampermonkey@5.0.4': {}
+
+  '@zip.js/zip.js@2.7.72': {}
 
   earcut@3.0.2: {}
 

@@ -7,10 +7,7 @@ export type OverlayItem = {
   id: string;
   name: string;
   enabled: boolean;
-  imageUrl: string | null;
-  imageBase64: string | null;
-  imageId: string;
-  isLocal: boolean;
+  image: string | null;
   x: number;
   y: number;
   opacity: number;
@@ -63,21 +60,25 @@ export async function loadConfig() {
     }));
     for (const ov of config.overlays) {
       try {
+        if ((ov as any).imageBase64) {
+          ov.image = (ov as any).imageBase64;
+          (ov as any).imageBase64 = undefined;
+        }
         if ((ov as any).pixelUrl) {
           const u = new URL((ov as any).pixelUrl);
           const parts = u.pathname.split('/');
           const sp = new URLSearchParams(u.search);
           ov.x = parseInt(parts[3], 10) * TILE_SIZE + parseInt(sp.get('x') || '0', 10);
           ov.y = parseInt(parts[4], 10) * TILE_SIZE + parseInt(sp.get('y') || '0', 10);
-          //(ov as any).pixelUrl = undefined;
+          (ov as any).pixelUrl = undefined;
         }
         if ((ov as any).offsetX) {
           ov.x += (ov as any).offsetX;
-          //(ov as any).offsetX = undefined;
+          (ov as any).offsetX = undefined;
         }
         if ((ov as any).offsetY) {
           ov.y += (ov as any).offsetY;
-          //(ov as any).offsetX = undefined;
+          (ov as any).offsetY = undefined;
         }
       }
       catch (e) {

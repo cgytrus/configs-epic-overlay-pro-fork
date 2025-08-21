@@ -2,12 +2,13 @@
 import { config, saveConfig, getActiveOverlay, applyTheme, type OverlayItem } from '../core/store';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
-import { urlToDataURL, fileToDataURL, gmFetchJson } from '../core/gm';
+import { urlToDataURL, fileToDataURL, blobToDataURL } from '../core/gm';
 import { uniqueName, uid, lonLatToPixel } from '../core/util';
-import {  updateOverlays } from '../core/overlay';
+import { updateOverlays } from '../core/overlay';
 import { buildCCModal, openCCModal } from './ccModal';
 import { buildRSModal, openRSModal } from './rsModal';
 import { menu, user } from '../core/hook';
+import { BlobReader, BlobWriter, HttpReader, TextReader, TextWriter, ZipReader, ZipWriter } from '@zip.js/zip.js';
 
 let panelEl: HTMLDivElement | null = null;
 
@@ -89,9 +90,10 @@ export function createUI() {
             <div class="op-title-right">
               <div class="op-row in-header">
                 <button class="op-button in-header" id="op-add-overlay" title="Create a new overlay">+ Add</button>
-                <button class="op-button in-header" id="op-import-overlay" title="Import overlay JSON">Import</button>
-                <button class="op-button in-header" id="op-export-overlay" title="Export active overlay JSON">Export</button>
+                <button class="op-button in-header" id="op-import-overlay" title="Import overlay">Import</button>
+                <button class="op-button in-header" id="op-export-overlay" title="Export active overlay">Export</button>
                 <button class="op-chevron" id="op-collapse-list" title="Collapse/Expand">▾</button>
+                <input type="file" id="op-import-overlay-input" accept=".overlay" multiple hidden>
               </div>
             </div>
           </div>
@@ -159,7 +161,7 @@ function rebuildOverlayListUI() {
   for (const ov of config.overlays) {
     const item = document.createElement('div');
     item.className = 'op-item' + (ov.id === config.activeOverlayId ? ' active' : '');
-    const localTag = ov.isLocal ? ' (local)' : (!ov.imageBase64 ? ' (no image)' : '');
+    const localTag = !ov.image ? ' (no image)' : '';
     item.innerHTML = `
         <input type="radio" name="op-active" ${ov.id === config.activeOverlayId ? 'checked' : ''} title="Set active"/>
         <input type="checkbox" ${ov.enabled ? 'checked' : ''} title="Toggle enabled"/>
@@ -195,7 +197,7 @@ async function addBlankOverlay() {
   }
   const [ x, y ] = lonLatToPixel(menu.latLon[1], menu.latLon[0]);
   const name = uniqueName('Overlay', config.overlays.map(o => o.name || ''));
-  const ov = { id: uid(), name, enabled: true, imageUrl: null, imageBase64: null, imageId: uid(), isLocal: false, x, y, opacity: 0.7 };
+  const ov = { id: uid(), name, enabled: true, image: null, x, y, opacity: 0.7 };
   config.overlays.push(ov);
   config.activeOverlayId = ov.id;
   await saveConfig(['overlays', 'activeOverlayId']);
@@ -206,9 +208,7 @@ async function addBlankOverlay() {
 }
 
 async function setOverlayImageFromURL(ov: OverlayItem, url: string) {
-  const base64 = await urlToDataURL(url);
-  ov.imageUrl = url; ov.imageBase64 = base64; ov.isLocal = false;
-  ov.imageId = uid();
+  ov.image = await urlToDataURL(url);
   await saveConfig(['overlays']); clearOverlayCache();
   updateUI();
   await updateOverlays();
@@ -217,77 +217,66 @@ async function setOverlayImageFromURL(ov: OverlayItem, url: string) {
 async function setOverlayImageFromFile(ov: OverlayItem, file: File) {
   if (!file || !file.type || !file.type.startsWith('image/')) { alert('Please choose an image file.'); return; }
   if (!confirm('Local PNGs cannot be exported to friends! Are you sure?')) return;
-  const base64 = await fileToDataURL(file);
-  ov.imageBase64 = base64; ov.imageUrl = null; ov.isLocal = true;
-  ov.imageId = uid();
-  await saveConfig(['overlays']); clearOverlayCache();
+  ov.image = await fileToDataURL(file);
+  await saveConfig(['overlays']);
+  clearOverlayCache();
   updateUI();
   await updateOverlays();
   showToast(`Local image loaded. Placement mode ON -- click once to set anchor.`);
 }
 
-async function importOverlayFromJSON(jsonText: string) {
-  let obj;
-  try {
-    obj = JSON.parse(jsonText);
-  }
-  catch {
-    try {
-      obj = await gmFetchJson(jsonText);
-    }
-    catch {
-      alert('Invalid JSON or link');
-      return;
-    }
-  }
-  const arr = Array.isArray(obj) ? obj : [obj];
-  let imported = 0, failed = 0;
+async function importOverlays(files: FileList) {
+  let imported = 0
+  let failed = 0;
   let shouldOverride = null;
-  for (const item of arr) {
-    const override = shouldOverride === false ? undefined : config.overlays.find(x => x.name.toLowerCase() === item.name.toLowerCase());
-    if (shouldOverride === null && override) {
-      shouldOverride = confirm('Some imported overlays have names that are already in use.\n\nOK to override overlays with overlapping names.\nCancel to rename imported overlays.');
-    }
-    if (override && shouldOverride) {
-      if (item.imageUrl !== undefined) {
-        try {
-          const base64 = await urlToDataURL(item.imageUrl);
-          override.imageUrl = item.imageUrl;
-          override.imageBase64 = base64;
-          override.isLocal = false;
-          override.imageId = uid();
-        }
-        catch (e) {
-          console.error('Import failed for', item.imageUrl, e);
-          failed++;
-          continue;
-        }
-      }
-      override.x = item.x !== undefined ? item.x : override.x;
-      override.y = item.y !== undefined ? item.y : override.y;
-      override.opacity = item.opacity !== undefined ? item.opacity : override.opacity;
-      imported++;
-    }
-    else {
-      const name = uniqueName(item.name || 'Imported Overlay', config.overlays.map(o => o.name || ''));
-      const imageUrl = item.imageUrl;
-      const x = Number.isFinite(item.x) ? item.x : 0;
-      const y = Number.isFinite(item.y) ? item.y : 0;
-      const opacity = Number.isFinite(item.opacity) ? item.opacity : 0.7;
-      if (!imageUrl) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    try {
+      const zip = new ZipReader(new BlobReader(file));
+      const entries = await zip.getEntries();
+      const metaFile = entries.find(x => x.filename == 'meta.json');
+      const imageFile = entries.find(x => x.filename == 'image.png');
+      if (!metaFile) {
+        showToast(`Failed to import ${file.name}: missing meta.json`);
         failed++;
         continue;
       }
-      try {
-        const base64 = await urlToDataURL(imageUrl);
-        const ov = { id: uid(), name, enabled: true, imageUrl, imageBase64: base64, imageId: uid(), isLocal: false, x, y, opacity };
-        config.overlays.push(ov);
-        imported++;
-      }
-      catch (e) {
-        console.error('Import failed for', imageUrl, e);
+      if (!imageFile) {
+        showToast(`Failed to import ${file.name}: missing image.png`);
         failed++;
+        continue;
       }
+
+      const meta = JSON.parse(await metaFile.getData(new TextWriter()));
+      const image = await blobToDataURL(await imageFile.getData(new BlobWriter()));
+
+      const override = shouldOverride === false ? undefined : config.overlays.find(x => x.name.toLowerCase() === meta.name.toLowerCase());
+      if (shouldOverride === null && override) {
+        shouldOverride = confirm('Some imported overlays have names that are already in use.\n\nOK to override overlays with overlapping names.\nCancel to rename imported overlays.');
+      }
+      if (override && shouldOverride) {
+        override.image = image;
+        override.x = meta.x !== undefined ? meta.x : override.x;
+        override.y = meta.y !== undefined ? meta.y : override.y;
+        override.opacity = meta.opacity !== undefined ? meta.opacity : override.opacity;
+      }
+      else {
+        config.overlays.push({
+          id: uid(),
+          name: uniqueName(meta.name || 'Imported Overlay', config.overlays.map(o => o.name || '')),
+          enabled: true,
+          image,
+          x: Number.isFinite(meta.x) ? meta.x : 0,
+          y: Number.isFinite(meta.y) ? meta.y : 0,
+          opacity: Number.isFinite(meta.opacity) ? meta.opacity : 0.7
+        });
+      }
+      imported++;
+    }
+    catch (e) {
+      showToast(`Failed to import ${file.name}: ${e}`);
+      failed++;
+      continue;
     }
   }
   if (imported > 0) {
@@ -298,24 +287,40 @@ async function importOverlayFromJSON(jsonText: string) {
   alert(`Import finished. Imported: ${imported}${failed ? `, Failed: ${failed}` : ''}`);
 }
 
-function exportActiveOverlayToClipboard() {
+async function exportActiveOverlay() {
   const ov = getActiveOverlay();
-  if (!ov) { alert('No active overlay selected.'); return; }
-  if (ov.isLocal || !ov.imageUrl) { alert('This overlay uses a local image and cannot be exported. Please host the image and set an image URL.'); return; }
-  const payload = {
-    version: 1,
-    name: ov.name,
-    imageUrl: ov.imageUrl,
-    x: ov.x == 0 ? undefined : ov.x,
-    y: ov.y == 0 ? undefined : ov.y,
-    opacity: ov.opacity == 0.7 ? undefined : ov.opacity
-  };
-  const text = JSON.stringify(payload, null, 2);
-  copyText(text).then(() => alert('Overlay JSON copied to clipboard!')).catch(() => { prompt('Copy the JSON below:', text); });
-}
-function copyText(text: string) {
-  if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
-  return Promise.reject(new Error('Clipboard API not available'));
+  if (!ov) {
+    showToast('No overlay selected.', 'error');
+    return;
+  }
+  if (!ov.image) {
+    showToast('Overlay doesn\'t have an image.', 'error');
+    return;
+  }
+  try {
+    const blob = new BlobWriter('octet/stream');
+    const zip = new ZipWriter(blob, { level: 0 });
+    await zip.add('meta.json', new TextReader(JSON.stringify({
+      name: ov.name,
+      x: ov.x == 0 ? undefined : ov.x,
+      y: ov.y == 0 ? undefined : ov.y,
+      opacity: ov.opacity == 0.7 ? undefined : ov.opacity
+    }, null, 2)));
+    await zip.add('image.png', new HttpReader(ov.image));
+    await zip.close();
+    const url = URL.createObjectURL(await blob.getData());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${ov.name}.overlay`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Exporting overlay!', 'success');
+  }
+  catch (e) {
+    showToast(`Failed to export overlay: ${e}`, 'error', 5000);
+  }
 }
 
 function addEventListeners(panel: HTMLDivElement) {
@@ -333,9 +338,14 @@ function addEventListeners(panel: HTMLDivElement) {
     });
   });
 
+  const importOverlay = $('op-import-overlay');
+  const importOverlayInput = $('op-import-overlay-input') as HTMLInputElement;
   $('op-add-overlay').addEventListener('click', async () => { try { await addBlankOverlay(); } catch (e) { console.error(e); } });
-  $('op-import-overlay').addEventListener('click', async () => { const text = prompt('Paste overlay JSON (single or array) or link:'); if (!text) return; await importOverlayFromJSON(text); });
-  $('op-export-overlay').addEventListener('click', () => exportActiveOverlayToClipboard());
+  importOverlay.addEventListener('click', () => importOverlayInput.click());
+  importOverlayInput.addEventListener('change', async () => { await importOverlays(importOverlayInput.files); importOverlayInput.value = null; });
+  importOverlay.addEventListener('drop', async e => { e.preventDefault(); await importOverlays(e.dataTransfer.files) });
+  importOverlay.addEventListener('dragover', (e: any) => e.preventDefault());
+  $('op-export-overlay').addEventListener('click', async () => await exportActiveOverlay());
   $('op-collapse-stats').addEventListener('click', () => { config.collapseStats = !config.collapseStats; saveConfig(['collapseStats']); updateUI(); });
   $('op-collapse-mode').addEventListener('click', () => { config.collapseMode = !config.collapseMode; saveConfig(['collapseMode']); updateUI(); });
   $('op-collapse-list').addEventListener('click', () => { config.collapseList = !config.collapseList; saveConfig(['collapseList']); updateUI(); });
@@ -354,7 +364,7 @@ function addEventListeners(panel: HTMLDivElement) {
 
   $('op-fetch').addEventListener('click', async () => {
     const ov = getActiveOverlay(); if (!ov) { alert('No active overlay selected.'); return; }
-    if (ov.imageBase64) { alert('This overlay already has an image. Create a new overlay to change the image.'); return; }
+    if (ov.image) { alert('This overlay already has an image. Create a new overlay to change the image.'); return; }
     const url = ( $('op-image-url') as HTMLInputElement ).value.trim(); if (!url) { alert('Enter an image link first.'); return; }
     try { await setOverlayImageFromURL(ov, url); } catch (e) { console.error(e); alert('Failed to fetch image.'); }
   });
@@ -364,7 +374,7 @@ function addEventListeners(panel: HTMLDivElement) {
   $('op-file-input').addEventListener('change', async (e: any) => {
     const file = e.target.files && e.target.files[0]; e.target.value=''; if (!file) return;
     const ov = getActiveOverlay(); if (!ov) return;
-    if (ov.imageBase64) { alert('This overlay already has an image. Create a new overlay to change the image.'); return; }
+    if (ov.image) { alert('This overlay already has an image. Create a new overlay to change the image.'); return; }
     try { await setOverlayImageFromFile(ov, file); } catch (err) { console.error(err); alert('Failed to load local image.'); }
   });
   ['dragenter', 'dragover'].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('drop-highlight'); }));
@@ -372,7 +382,7 @@ function addEventListeners(panel: HTMLDivElement) {
   dropzone.addEventListener('drop', async (e: any) => {
     const dt = e.dataTransfer; if (!dt) return; const file = dt.files && dt.files[0]; if (!file) return;
     const ov = getActiveOverlay(); if (!ov) return;
-    if (ov.imageBase64) { alert('This overlay already has an image. Create a new overlay to change the image.'); return; }
+    if (ov.image) { alert('This overlay already has an image. Create a new overlay to change the image.'); return; }
     try { await setOverlayImageFromFile(ov, file); } catch (err) { console.error(err); alert('Failed to load dropped image.'); }
   });
 
@@ -397,9 +407,9 @@ function addEventListeners(panel: HTMLDivElement) {
 
   $('op-download-overlay').addEventListener('click', () => {
     const ov = getActiveOverlay();
-    if (!ov || !ov.imageBase64) { showToast('No overlay image to download.'); return; }
+    if (!ov || !ov.image) { showToast('No overlay image to download.'); return; }
     const a = document.createElement('a');
-    a.href = ov.imageBase64;
+    a.href = ov.image;
     a.download = `${(ov.name || 'overlay').replace(/[^\w.-]+/g, '_')}.png`;
     document.body.appendChild(a);
     a.click();
@@ -407,14 +417,14 @@ function addEventListeners(panel: HTMLDivElement) {
   });
 
   $('op-open-cc').addEventListener('click', () => {
-    const ov = getActiveOverlay(); if (!ov || !ov.imageBase64) { showToast('No overlay image to edit.'); return; }
+    const ov = getActiveOverlay(); if (!ov || !ov.image) { showToast('No overlay image to edit.'); return; }
     openCCModal(ov);
   });
   const resizeBtn = $('op-open-resize');
   if (resizeBtn) {
     resizeBtn.addEventListener('click', () => {
       const ov = getActiveOverlay();
-      if (!ov || !ov.imageBase64) { showToast('No overlay image to resize.'); return; }
+      if (!ov || !ov.image) { showToast('No overlay image to resize.'); return; }
       openRSModal(ov);
     });
   }
@@ -482,16 +492,16 @@ function updateEditorUI() {
   const previewImg = $('op-image-preview') as HTMLImageElement;
   const ccRow = $('op-cc-btn-row');
 
-  if (ov.imageBase64) {
+  if (ov.image) {
     srcWrap.style.display = 'none';
     previewWrap.style.display = 'flex';
-    previewImg.src = ov.imageBase64;
+    previewImg.src = ov.image;
     ccRow.style.display = 'flex';
   } else {
     srcWrap.style.display = 'block';
     previewWrap.style.display = 'none';
     ccRow.style.display = 'none';
-    ( $('op-image-url') as HTMLInputElement ).value = ov.imageUrl || '';
+    ( $('op-image-url') as HTMLInputElement ).value = '';
   }
 
   const coordDisplay = $('op-coord-display');
@@ -610,9 +620,4 @@ export function updateUI() {
 
   rebuildOverlayListUI();
   updateEditorUI();
-
-  const exportBtn = $('op-export-overlay') as HTMLButtonElement;
-  const canExport = !!(ov && ov.imageUrl && !ov.isLocal);
-  exportBtn.disabled = !canExport;
-  exportBtn.title = canExport ? 'Export active overlay JSON' : 'Export disabled for local images';
 }

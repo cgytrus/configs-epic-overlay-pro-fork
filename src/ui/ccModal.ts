@@ -171,13 +171,11 @@ export function buildCCModal() {
       showToast(`Image too large to apply (must be < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM}).`);
       return;
     }
-    const dataUrl = cc!.processedCanvas.toDataURL('image/png');
-    ov.imageBase64 = dataUrl; ov.imageUrl = null; ov.isLocal = true;
-    ov.imageId = uid();
-    
+    ov.image = cc!.processedCanvas.toDataURL('image/png');
+
     // Mark the processed image as palette-perfect for optimization
-    paletteDetectionCache.set(dataUrl, true);
-    
+    paletteDetectionCache.set(ov.image, true);
+
     await saveConfig(['overlays']);
     clearOverlayCache();
     await updateOverlays();
