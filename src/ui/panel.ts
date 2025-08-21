@@ -59,10 +59,6 @@ export function createUI() {
               <div id="op-level-value">idk :&lt;</div>
             </div>
             <div class="op-row">
-              <div>Charges:</div>
-              <div id="op-charges-value">idk :&lt;</div>
-            </div>
-            <div class="op-row">
               <div>Pixel:</div>
               <div id="op-coord-display" style="cursor: pointer;">idk :&lt;</div>
             </div>
@@ -581,7 +577,6 @@ export function updateUI() {
   const statsCz = $('op-collapse-stats');
   const dropletsValue = $('op-droplets-value');
   const levelValue = $('op-level-value');
-  const chargesValue = $('op-charges-value');
   const smallStats = $('op-small-stats');
   if (statsBody) statsBody.style.display = config.collapseStats ? 'none' : 'block';
   if (statsCz) statsCz.textContent = config.collapseStats ? '▸' : '▾';
@@ -596,9 +591,6 @@ export function updateUI() {
     }
     if (levelValue) {
       levelValue.textContent = `${level} (${percent}% ${pixels - forNextLevel}/${pixels - forCurrentLevel}/${forNextLevel - forCurrentLevel})`;
-    }
-    if (chargesValue) {
-      chargesValue.textContent = `${user.charges}`;
     }
     if (smallStats) {
       smallStats.textContent = `(${user.data.droplets}💧| ${pixels - forNextLevel}/${pixels - forCurrentLevel}/${forNextLevel - forCurrentLevel})`;
