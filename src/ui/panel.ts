@@ -35,7 +35,6 @@ export function createUI() {
         </div>
         <div class="op-header-actions">
           <button class="op-hdr-btn" id="op-theme-toggle" title="Toggle theme">☀️/🌙</button>
-          <button class="op-hdr-btn" id="op-refresh-btn" title="Refresh">⟲</button>
           <button class="op-toggle-btn" id="op-panel-toggle" title="Collapse">▾</button>
         </div>
       </div>
@@ -351,7 +350,6 @@ async function exportActiveOverlay() {
 
 function addEventListeners(panel: HTMLDivElement) {
   $('op-theme-toggle').addEventListener('click', async (e) => { e.stopPropagation(); config.theme = config.theme === 'light' ? 'dark' : 'light'; await saveConfig(['theme']); applyTheme(); updateThemeToggle(); });
-  $('op-refresh-btn').addEventListener('click', (e) => { e.stopPropagation(); location.reload(); });
   $('op-panel-toggle').addEventListener('click', (e) => { e.stopPropagation(); config.isPanelCollapsed = !config.isPanelCollapsed; saveConfig(['isPanelCollapsed']); updateUI(); });
 
   $('op-coord-display').addEventListener('click', () => {

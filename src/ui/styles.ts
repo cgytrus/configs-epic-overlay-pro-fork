@@ -45,7 +45,7 @@ export function injectStyles() {
       #op-theme-toggle { padding-left: 5px; padding-right: 4px; }
       #op-small-stats {
         text-wrap-mode: nowrap;
-        width: 120px;
+        max-width: 158px;
         overflow: hidden;
       }
 
