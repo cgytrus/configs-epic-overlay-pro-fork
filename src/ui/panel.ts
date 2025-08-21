@@ -190,6 +190,11 @@ function rebuildOverlayListUI() {
       camera.bearing = null;
       selectPixel(ov.x, ov.y, camera.zoom);
       map.flyTo(camera);
+      unsafeWindow.localStorage.setItem('location', JSON.stringify({
+        lng: (camera.center as any).lng || (camera.center as any).lon || (camera.center as any)[0],
+        lat: (camera.center as any).lat || (camera.center as any)[1],
+        zoom: camera.zoom
+      }));
       updateUI();
     });
     trashBtn.addEventListener('click', async e => {
