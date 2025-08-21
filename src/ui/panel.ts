@@ -318,7 +318,7 @@ async function exportActiveOverlay() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    showToast(`Exported overlay '${ov.name}'!`, 'success');
+    showToast(`Exported overlay "${ov.name}"!`, 'success');
   }
   catch (e) {
     showToast(`Failed to export overlay: ${e}`, 'error', 5000);
