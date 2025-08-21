@@ -10,7 +10,6 @@ export type OverlayItem = {
   image: string | null;
   x: number;
   y: number;
-  opacity: number;
 };
 
 export type Config = {
@@ -18,6 +17,7 @@ export type Config = {
   activeOverlayId: string | null;
   overlayLayering: 'behind' | 'above' | 'top';
   overlayStyle: 'full' | 'dots' | 'none';
+  overlayOpacity: number;
   isPanelCollapsed: boolean;
   panelX: number | null;
   panelY: number | null;
@@ -37,6 +37,7 @@ export const config: Config = {
   activeOverlayId: null,
   overlayLayering: 'top',
   overlayStyle: 'dots',
+  overlayOpacity: 0.7,
   isPanelCollapsed: false,
   panelX: null,
   panelY: null,

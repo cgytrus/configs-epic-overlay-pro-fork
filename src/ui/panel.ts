@@ -258,7 +258,6 @@ async function importOverlays(files: FileList) {
         override.image = image;
         override.x = meta.x !== undefined ? meta.x : override.x;
         override.y = meta.y !== undefined ? meta.y : override.y;
-        override.opacity = meta.opacity !== undefined ? meta.opacity : override.opacity;
       }
       else {
         config.overlays.push({
@@ -267,8 +266,7 @@ async function importOverlays(files: FileList) {
           enabled: true,
           image,
           x: Number.isFinite(meta.x) ? meta.x : 0,
-          y: Number.isFinite(meta.y) ? meta.y : 0,
-          opacity: Number.isFinite(meta.opacity) ? meta.opacity : 0.7
+          y: Number.isFinite(meta.y) ? meta.y : 0
         });
       }
       imported++;
@@ -303,8 +301,7 @@ async function exportActiveOverlay() {
     await zip.add('meta.json', new TextReader(JSON.stringify({
       name: ov.name,
       x: ov.x == 0 ? undefined : ov.x,
-      y: ov.y == 0 ? undefined : ov.y,
-      opacity: ov.opacity == 0.7 ? undefined : ov.opacity
+      y: ov.y == 0 ? undefined : ov.y
     }, null, 2)));
     await zip.add('image.png', new HttpReader(ov.image));
     await zip.close();
@@ -337,6 +334,12 @@ function addEventListeners(panel: HTMLDivElement) {
         await updateOverlays();
     });
   });
+
+  $('op-opacity-slider').addEventListener('input', async (e: any) => {
+    config.overlayOpacity = parseFloat(e.target.value);
+    $('op-opacity-value').textContent = Math.round(config.overlayOpacity * 100) + '%';
+  });
+  $('op-opacity-slider').addEventListener('change', async () => { await saveConfig(['overlayOpacity']); await updateOverlays(); });
 
   const importOverlay = $('op-import-overlay');
   const importOverlayInput = $('op-import-overlay-input') as HTMLInputElement;
@@ -385,13 +388,6 @@ function addEventListeners(panel: HTMLDivElement) {
     if (ov.image) { alert('This overlay already has an image. Create a new overlay to change the image.'); return; }
     try { await setOverlayImageFromFile(ov, file); } catch (err) { console.error(err); alert('Failed to load dropped image.'); }
   });
-
-  $('op-opacity-slider').addEventListener('input', (e: any) => {
-    const ov = getActiveOverlay(); if (!ov) return;
-    ov.opacity = parseFloat(e.target.value);
-    $('op-opacity-value').textContent = Math.round(ov.opacity * 100) + '%';
-  });
-  $('op-opacity-slider').addEventListener('change', async () => { await saveConfig(['overlays']); clearOverlayCache(); await updateOverlays(); });
 
   $('op-move-overlay').addEventListener('click', async () => {
     if (!menu.latLon) {
@@ -594,8 +590,8 @@ export function updateUI() {
 
   // --- Mode Settings ---
   if (ov) {
-    ($('op-opacity-slider') as HTMLInputElement).value = String(ov.opacity);
-    $('op-opacity-value').textContent = Math.round(ov.opacity * 100) + '%';
+    ($('op-opacity-slider') as HTMLInputElement).value = String(config.overlayOpacity);
+    $('op-opacity-value').textContent = Math.round(config.overlayOpacity * 100) + '%';
   }
 
   const layeringBtns = $('op-layering-btns');
