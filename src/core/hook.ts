@@ -1,9 +1,8 @@
 /// <reference types="tampermonkey" />
-import { config, saveConfig } from './store';
-import { matchPixelUrl, updateOverlays } from './overlay';
+import { updateOverlays } from './overlay';
 import { updateUI } from '../ui/panel';
 import { type Map } from 'maplibre-gl';
-import { findExport, findExportName, findModule, moduleFilters } from './modules';
+import { findExport, findModule, moduleFilters } from './modules';
 import { clearOverlayCache } from './cache';
 
 let hookInstalled = false;

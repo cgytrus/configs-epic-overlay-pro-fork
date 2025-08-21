@@ -1,8 +1,8 @@
 import { createCanvas, loadImage, canvasToDataURLSafe } from './canvas';
 import { MINIFY_SCALE, MAX_OVERLAY_DIM } from './constants';
-import { imageDecodeCache, tooLargeOverlays, clearOverlayCache } from './cache';
+import { imageDecodeCache, tooLargeOverlays } from './cache';
 import { showToast } from './toast';
-import { config, saveConfig, type OverlayItem } from './store';
+import { config, type OverlayItem } from './store';
 import { WPLACE_FREE, WPLACE_PAID } from './palette';
 import { map } from './hook';
 import { ImageSource, type Coordinates } from 'maplibre-gl';

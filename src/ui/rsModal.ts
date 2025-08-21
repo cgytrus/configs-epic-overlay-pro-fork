@@ -4,7 +4,6 @@ import { saveConfig, type OverlayItem } from '../core/store';
 import { MAX_OVERLAY_DIM } from '../core/constants';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
-import { uid } from '../core/util';
 import { updateOverlays } from '../core/overlay';
 import { updateUI } from './panel';
 
