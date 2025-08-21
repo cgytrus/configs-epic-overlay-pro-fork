@@ -1,6 +1,6 @@
 /// <reference types="tampermonkey" />
 import { config, saveConfig, getActiveOverlay, applyTheme, type OverlayItem } from '../core/store';
-import { clearOverlayCache } from '../core/cache';
+import { clearOverlayCache, imagePixelCountCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { fileToDataURL, blobToDataURL, gmFetchBlob } from '../core/gm';
 import { uniqueName, uid, lonLatToPixel, pixelToLonLat, selectPixel } from '../core/util';
@@ -10,6 +10,7 @@ import { buildRSModal, openRSModal } from './rsModal';
 import { map, menu, user } from '../core/hook';
 import { BlobReader, BlobWriter, HttpReader, TextReader, TextWriter, ZipReader, ZipWriter } from '@zip.js/zip.js';
 import { TILE_SIZE } from '../core/constants';
+import { createCanvas } from '../core/canvas';
 
 let panelEl: HTMLDivElement | null = null;
 
@@ -143,6 +144,7 @@ export function createUI() {
             </div>
 
             <div class="op-row"><span class="op-muted" id="op-overlay-coord-display"></span></div>
+            <div class="op-row"><span class="op-muted" id="op-overlay-size"></span></div>
           </div>
         </div>
       </div>
@@ -612,6 +614,28 @@ function updateEditorUI() {
   const overlayCoordDisplay = $('op-overlay-coord-display');
   if (overlayCoordDisplay) {
     overlayCoordDisplay.textContent = `pos: (${ov.x}, ${ov.y}) | (${Math.floor(ov.x / TILE_SIZE)}, ${Math.floor(ov.y / TILE_SIZE)}) | (${Math.floor(ov.x % TILE_SIZE)}, ${Math.floor(ov.y % TILE_SIZE)})`;
+  }
+
+  const overlaySize = $('op-overlay-size');
+  if (overlaySize) {
+    decodeOverlayImage(ov.image).then(img => {
+      let count = 0;
+      if (imagePixelCountCache.has(ov.image)) {
+        count = imagePixelCountCache.get(ov.image);
+      }
+      else {
+        const canvas = createCanvas(img.width, img.height);
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })! as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
+        ctx.drawImage(img, 0, 0);
+        const data = ctx.getImageData(0, 0, img.width, img.height);
+        let count = 0;
+        for (let i = 0; i < data.width * data.height; i++) {
+          count += data.data[i * 4 + 3] >= 128 ? 1 : 0;
+        }
+        imagePixelCountCache.set(ov.image, count);
+      }
+      overlaySize.textContent = `size: ${img.width}x${img.height} (total px: ${img.width * img.height}, opaque px: ${count})`;
+    });
   }
 
   editorBody.style.display = config.collapseEditor ? 'none' : 'block';
