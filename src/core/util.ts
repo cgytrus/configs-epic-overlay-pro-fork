@@ -1,4 +1,5 @@
 import { TILE_SIZE } from "./constants";
+import { menu } from "./hook";
 const a = 2 * Math.PI * 6378137 / 2;
 const b = (a / TILE_SIZE) / 2 ** 10;
 
@@ -26,4 +27,17 @@ export function lonLatToPixel(lon: number, lat: number) {
   const x = (lon / 180 * a + a) / b;
   const y = (a - lat / 180 * a) / b;
   return [ Math.floor(x), Math.floor(y) ];
+}
+
+export function selectPixel(x: number, y: number, zoom: number) {
+  const lonLat = pixelToLonLat(x + 0.5, y + 0.5);
+  unsafeWindow.localStorage.setItem('location', JSON.stringify({
+    lng: lonLat[0],
+    lat: lonLat[1],
+    zoom
+  }));
+  menu.name = 'pixelSelected';
+  // i dont know how to silence the stupid ts error
+  if (menu.name === 'pixelSelected')
+    menu.latLon = [ lonLat[1], lonLat[0] ];
 }

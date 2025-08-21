@@ -3,11 +3,11 @@ import { config, saveConfig, getActiveOverlay, applyTheme, type OverlayItem } fr
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
 import { urlToDataURL, fileToDataURL, blobToDataURL } from '../core/gm';
-import { uniqueName, uid, lonLatToPixel } from '../core/util';
-import { updateOverlays } from '../core/overlay';
+import { uniqueName, uid, lonLatToPixel, pixelToLonLat, selectPixel } from '../core/util';
+import { decodeOverlayImage, updateOverlays } from '../core/overlay';
 import { buildCCModal, openCCModal } from './ccModal';
 import { buildRSModal, openRSModal } from './rsModal';
-import { menu, user } from '../core/hook';
+import { map, menu, user } from '../core/hook';
 import { BlobReader, BlobWriter, HttpReader, TextReader, TextWriter, ZipReader, ZipWriter } from '@zip.js/zip.js';
 import { TILE_SIZE } from '../core/constants';
 
@@ -171,16 +171,32 @@ function rebuildOverlayListUI() {
         <input type="radio" name="op-active" ${ov.id === config.activeOverlayId ? 'checked' : ''} title="Set active"/>
         <input type="checkbox" ${ov.enabled ? 'checked' : ''} title="Toggle enabled"/>
         <div class="op-item-name" title="${(ov.name || '(unnamed)') + localTag}">${(ov.name || '(unnamed)') + localTag}</div>
+        <button class="op-button" title="Jump to location">Jump</button>
         <button class="op-icon-btn" title="Delete overlay">🗑️</button>
     `;
-    const [radio, checkbox, nameDiv, trashBtn] = item.children as any as [HTMLInputElement, HTMLInputElement, HTMLDivElement, HTMLButtonElement];
+    const [radio, checkbox, nameDiv, jumpBtn, trashBtn] = item.children as any as [HTMLInputElement, HTMLInputElement, HTMLDivElement, HTMLButtonElement, HTMLButtonElement];
     radio.addEventListener('change', async () => { config.activeOverlayId = ov.id; await saveConfig(['activeOverlayId']); updateUI(); });
     checkbox.addEventListener('change', async () => {
       ov.enabled = checkbox.checked; await saveConfig(['overlays']); clearOverlayCache(); updateUI();
       await updateOverlays();
     });
     nameDiv.addEventListener('click', async () => { config.activeOverlayId = ov.id; await saveConfig(['activeOverlayId']); updateUI(); });
-    trashBtn.addEventListener('click', async (e) => {
+    jumpBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const img = await decodeOverlayImage(ov.image);
+      const camera = map.cameraForBounds([
+        pixelToLonLat(ov.x, ov.y),
+        pixelToLonLat(ov.x + img.width, ov.y + img.height)
+      ], {
+        padding: { top: 40, bottom: 12 + 133 + 40, right: 40, left: 40 }
+      });
+      camera.zoom = Math.max(camera.zoom, 11);
+      camera.bearing = null;
+      selectPixel(ov.x, ov.y, camera.zoom);
+      map.flyTo(camera);
+      updateUI();
+    });
+    trashBtn.addEventListener('click', async e => {
       e.stopPropagation();
       if (!confirm(`Delete overlay "${ov.name || '(unnamed)'}"?`)) return;
       const idx = config.overlays.findIndex(o => o.id === ov.id);
@@ -196,7 +212,7 @@ function rebuildOverlayListUI() {
 }
 
 async function addBlankOverlay() {
-  if (!menu.latLon) {
+  if (menu.name !== 'pixelSelected' || !menu.latLon) {
     showToast('Select a pixel to place the overlay on first!', 'error', 5000);
     return;
   }
@@ -331,7 +347,7 @@ function addEventListeners(panel: HTMLDivElement) {
   $('op-panel-toggle').addEventListener('click', (e) => { e.stopPropagation(); config.isPanelCollapsed = !config.isPanelCollapsed; saveConfig(['isPanelCollapsed']); updateUI(); });
 
   $('op-coord-display').addEventListener('click', () => {
-    if (!menu.latLon) {
+    if (menu.name !== 'pixelSelected' || !menu.latLon) {
       showToast('Select a pixel to copy its position.', 'error');
       return;
     }
@@ -410,7 +426,7 @@ function addEventListeners(panel: HTMLDivElement) {
   });
 
   $('op-move-overlay').addEventListener('click', async () => {
-    if (!menu.latLon) {
+    if (menu.name !== 'pixelSelected' || !menu.latLon) {
       showToast('Select a pixel to move to first!', 'error', 5000);
       return;
     }
@@ -594,7 +610,7 @@ export function updateUI() {
 
   const coordDisplay = $('op-coord-display');
   if (coordDisplay) {
-    if (menu.latLon) {
+    if (menu.name === 'pixelSelected' && menu.latLon) {
       const [ x, y ] = lonLatToPixel(menu.latLon[1], menu.latLon[0]);
       coordDisplay.textContent = `(${x}, ${y}) (${Math.floor(x / TILE_SIZE)}, ${Math.floor(y / TILE_SIZE)}) (${Math.floor(x % TILE_SIZE)}, ${Math.floor(y % TILE_SIZE)})`;
     }

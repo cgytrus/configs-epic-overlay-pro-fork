@@ -9,9 +9,15 @@ let hookInstalled = false;
 
 const page: any = unsafeWindow;
 
+type Menu = { name: 'mainMenu' | 'paintingPixel' | 'selectHq' } | { name: 'pixelSelected', latLon: [ number, number ] };
+function isMenu(x: any): x is Menu {
+  const possibleNames = [ 'mainMenu', 'pixelSelected', 'paintingPixel', 'selectHq' ];
+  return x && x.name && possibleNames.includes(x.name);
+}
+
 export let map: Map | null = null;
 export let user: any = null;
-export let menu: any = { name: 'mainMenu' };
+export let menu: Menu = { name: 'mainMenu' };
 
 export function attachHook() {
   if (!map) {
@@ -37,12 +43,11 @@ export function attachHook() {
   if (hookInstalled)
     return;
 
-  const possibleMenuNames = [ 'mainMenu', 'pixelSelected', 'paintingPixel', 'selectHq' ];
   page.ProxyOrig = page.Proxy;
   page.Proxy = class {
     constructor(target: any, handler: any) {
       const proxy = new page.ProxyOrig(target, handler);
-      if (!target || !target.name || !possibleMenuNames.includes(target.name))
+      if (!isMenu(target))
         return proxy;
       menu = proxy;
       page._menu = proxy;
