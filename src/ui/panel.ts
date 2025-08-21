@@ -2,7 +2,7 @@
 import { config, saveConfig, getActiveOverlay, applyTheme, type OverlayItem } from '../core/store';
 import { clearOverlayCache } from '../core/cache';
 import { showToast } from '../core/toast';
-import { urlToDataURL, fileToDataURL, blobToDataURL } from '../core/gm';
+import { fileToDataURL, blobToDataURL, gmFetchBlob } from '../core/gm';
 import { uniqueName, uid, lonLatToPixel, pixelToLonLat, selectPixel } from '../core/util';
 import { decodeOverlayImage, updateOverlays } from '../core/overlay';
 import { buildCCModal, openCCModal } from './ccModal';
@@ -119,28 +119,25 @@ export function createUI() {
 
           <div id="op-editor-body">
             <div class="op-row">
-              <label style="width: 90px;">Name</label>
+              <label style="width: 40px;" for="op-name">Name</label>
               <input type="text" class="op-input op-grow" id="op-name">
               <button class="op-button" id="op-move-overlay" title="Move overlay to currently selected pixel">Move</button>
             </div>
 
-            <div id="op-image-source">
-              <div class="op-row">
-                <label style="width: 90px;">Image</label>
-                <input type="text" class="op-input op-grow" id="op-image-url" placeholder="Paste a direct image link">
-                <button class="op-button" id="op-fetch">Fetch</button>
-              </div>
+            <div class="op-row">
+              <label style="width: 40px;" for="op-image-paste">Image</label>
+              <button class="op-button" id="op-image-paste">Paste from clipboard</button>
+            </div>
+
+            <div class="op-row">
               <div class="op-preview" id="op-dropzone">
-                <div class="op-drop-hint">Drop here or click to browse.</div>
+                <img id="op-dropzone-image" alt="No image">
+                <div class="op-drop-hint" id="op-dropzone-hint">Drop here or click to browse.</div>
                 <input type="file" id="op-file-input" accept="image/*" style="display:none">
               </div>
             </div>
 
-            <div class="op-preview" id="op-preview-wrap" style="display:none;">
-              <img id="op-image-preview" alt="No image">
-            </div>
-
-            <div class="op-row" id="op-cc-btn-row" style="display:none; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            <div class="op-row" id="op-cc-btn-row" style="display: none; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding-top: 4px;">
               <button class="op-button" id="op-download-overlay" title="Download this overlay image">Download</button>
               <button class="op-button" id="op-open-resize" title="Resize the overlay image">Resize</button>
               <button class="op-button" id="op-open-cc" title="Match colors to Wplace palette">Color Match</button>
@@ -228,22 +225,33 @@ async function addBlankOverlay() {
   return ov;
 }
 
-async function setOverlayImageFromURL(ov: OverlayItem, url: string) {
-  ov.image = await urlToDataURL(url);
-  await saveConfig(['overlays']); clearOverlayCache();
-  updateUI();
-  await updateOverlays();
-  showToast(`Image loaded. Placement mode ON -- click once to set anchor.`);
+async function setOverlayImageFromBlob(ov: OverlayItem, blob: Blob) {
+  if (!blob || !String(blob.type).startsWith('image/')) {
+    showToast('Please choose an image file.', 'error');
+    return;
+  }
+  await setOverlayImage(ov, await blobToDataURL(blob));
 }
+
+async function setOverlayImageFromURL(ov: OverlayItem, url: string) {
+  await setOverlayImageFromBlob(ov, await gmFetchBlob(url));
+}
+
 async function setOverlayImageFromFile(ov: OverlayItem, file: File) {
-  if (!file || !file.type || !file.type.startsWith('image/')) { showToast('Please choose an image file.', 'error'); return; }
-  if (!confirm('Local PNGs cannot be exported to friends! Are you sure?')) return;
-  ov.image = await fileToDataURL(file);
+  if (!file || !file.type || !file.type.startsWith('image/')) {
+    showToast('Please choose an image file.', 'error');
+    return;
+  }
+  await setOverlayImage(ov, await fileToDataURL(file));
+}
+
+async function setOverlayImage(ov: OverlayItem, image: string) {
+  ov.image = image;
   await saveConfig(['overlays']);
   clearOverlayCache();
   updateUI();
   await updateOverlays();
-  showToast(`Local image loaded. Placement mode ON -- click once to set anchor.`);
+  showToast(`Image loaded.`);
 }
 
 async function importOverlays(files: FileList) {
@@ -401,9 +409,36 @@ function addEventListeners(panel: HTMLDivElement) {
     await updateOverlays();
   });
 
-  $('op-fetch').addEventListener('click', async () => {
-    const ov = getActiveOverlay(); if (!ov) { showToast('No active overlay selected.', 'error'); return; }
-    if (ov.image) { showToast('This overlay already has an image. Create a new overlay to change the image.', 'error', 5000); return; }
+  $('op-image-paste').addEventListener('click', async () => {
+    const ov = getActiveOverlay();
+    if (!ov) {
+      showToast('No active overlay selected.', 'error');
+      return;
+    }
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const imageType = item.types.find(x => x.startsWith('image/'));
+      if (imageType) {
+        try {
+          await setOverlayImageFromBlob(ov, await item.getType(imageType));
+        }
+        catch (err) {
+          console.error(err);
+          showToast('Failed to load pasted image.', 'error');
+        }
+        break;
+      }
+      if (!item.types.includes('text/plain'))
+        continue;
+      try {
+        await setOverlayImageFromURL(ov, await (await item.getType('text/plain')).text());
+      }
+      catch (err) {
+        console.error(err);
+        showToast('Failed to load pasted image.', 'error');
+      }
+      break;
+    }
     const url = ( $('op-image-url') as HTMLInputElement ).value.trim(); if (!url) { showToast('Enter an image link first.', 'error'); return; }
     try { await setOverlayImageFromURL(ov, url); } catch (e) { console.error(e); showToast('Failed to fetch image.', 'error'); }
   });
@@ -411,18 +446,54 @@ function addEventListeners(panel: HTMLDivElement) {
   const dropzone = $('op-dropzone');
   dropzone.addEventListener('click', () => $('op-file-input').click());
   $('op-file-input').addEventListener('change', async (e: any) => {
-    const file = e.target.files && e.target.files[0]; e.target.value=''; if (!file) return;
-    const ov = getActiveOverlay(); if (!ov) return;
-    if (ov.image) { showToast('This overlay already has an image. Create a new overlay to change the image.', 'error', 5000); return; }
-    try { await setOverlayImageFromFile(ov, file); } catch (err) { console.error(err); showToast('Failed to load local image.', 'error'); }
+    const ov = getActiveOverlay();
+    if (!ov)
+      return;
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file)
+      return;
+    try {
+      await setOverlayImageFromFile(ov, file);
+    }
+    catch (err) {
+      console.error(err);
+      showToast('Failed to load local image.', 'error');
+    }
   });
-  ['dragenter', 'dragover'].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('drop-highlight'); }));
+  ['dragenter', 'dragover'].forEach(evt => dropzone.addEventListener(evt, (e: any) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('drop-highlight'); }));
   ['dragleave', 'drop'].forEach(evt => dropzone.addEventListener(evt, (e: any) => { e.preventDefault(); e.stopPropagation(); if (evt === 'dragleave' && e.target !== dropzone) return; dropzone.classList.remove('drop-highlight'); }));
-  dropzone.addEventListener('drop', async (e: any) => {
-    const dt = e.dataTransfer; if (!dt) return; const file = dt.files && dt.files[0]; if (!file) return;
-    const ov = getActiveOverlay(); if (!ov) return;
-    if (ov.image) { showToast('This overlay already has an image. Create a new overlay to change the image.', 'error', 5000); return; }
-    try { await setOverlayImageFromFile(ov, file); } catch (err) { console.error(err); showToast('Failed to load dropped image.', 'error'); }
+  dropzone.addEventListener('drop', async e => {
+    const ov = getActiveOverlay();
+    if (!ov)
+      return;
+    if (!e.dataTransfer || !e.dataTransfer.items)
+      return;
+    for (let i = 0; i < e.dataTransfer.items.length; i++) {
+      const item: DataTransferItem = e.dataTransfer.items[i];
+      const file = item.getAsFile();
+      if (file) {
+        try {
+          await setOverlayImageFromFile(ov, file);
+        }
+        catch (err) {
+          console.error(err);
+          showToast('Failed to load dropped image.', 'error');
+        }
+        break;
+      }
+      item.getAsString(async str => {
+        if (!URL.canParse(str))
+          return;
+        try {
+          await setOverlayImageFromURL(ov, str);
+        }
+        catch (err) {
+          console.error(err);
+          showToast('Failed to load dropped image.', 'error');
+        }
+      });
+    }
   });
 
   $('op-move-overlay').addEventListener('click', async () => {
@@ -519,21 +590,20 @@ function updateEditorUI() {
 
   ( $('op-name') as HTMLInputElement ).value = ov.name || '';
 
-  const srcWrap = $('op-image-source');
-  const previewWrap = $('op-preview-wrap');
-  const previewImg = $('op-image-preview') as HTMLImageElement;
+  const dropzoneImage = $('op-dropzone-image') as HTMLImageElement;
+  const dropzoneHint = $('op-dropzone-hint');
   const ccRow = $('op-cc-btn-row');
 
   if (ov.image) {
-    srcWrap.style.display = 'none';
-    previewWrap.style.display = 'flex';
-    previewImg.src = ov.image;
+    dropzoneImage.src = ov.image;
+    dropzoneImage.style.display = undefined;
+    dropzoneHint.style.display = 'none';
     ccRow.style.display = 'flex';
-  } else {
-    srcWrap.style.display = 'block';
-    previewWrap.style.display = 'none';
+  }
+  else {
+    dropzoneImage.style.display = 'none';
+    dropzoneHint.style.display = undefined;
     ccRow.style.display = 'none';
-    ( $('op-image-url') as HTMLInputElement ).value = '';
   }
 
   const overlayCoordDisplay = $('op-overlay-coord-display');
