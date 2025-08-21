@@ -628,7 +628,6 @@ function updateEditorUI() {
         const ctx = canvas.getContext('2d', { willReadFrequently: true })! as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
         ctx.drawImage(img, 0, 0);
         const data = ctx.getImageData(0, 0, img.width, img.height);
-        let count = 0;
         for (let i = 0; i < data.width * data.height; i++) {
           count += data.data[i * 4 + 3] >= 128 ? 1 : 0;
         }
