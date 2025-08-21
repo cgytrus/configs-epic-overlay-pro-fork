@@ -23,7 +23,9 @@ const MetaBannerPlugin = {
         // Normalize CRLF and prepend
         let banner = meta.trim() + '\n';
         try {
-          banner = banner.replace('GIT', execSync('git describe --always --dirty').toString().trim());
+          banner = banner
+            .replace('GIT_COUNT', execSync('git rev-list HEAD --count').toString().trim())
+            .replace('GIT_HASH', execSync('git describe --always --dirty').toString().trim());
         }
         catch (err) {
           console.warn('[meta-banner] Failed to git describe:', err);
