@@ -5,7 +5,7 @@ import { showToast } from './toast';
 import { config, type OverlayItem } from './store';
 import { WPLACE_FREE, WPLACE_PAID } from './palette';
 import { map } from './hook';
-import { ImageSource, type Coordinates } from 'maplibre-gl';
+import type { ImageSource, Coordinates } from 'maplibre-gl';
 import { pixelToLonLat } from './util';
 
 const ALL_COLORS = [...WPLACE_FREE, ...WPLACE_PAID];
