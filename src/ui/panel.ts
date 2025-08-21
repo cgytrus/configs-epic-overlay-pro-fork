@@ -9,6 +9,7 @@ import { buildCCModal, openCCModal } from './ccModal';
 import { buildRSModal, openRSModal } from './rsModal';
 import { menu, user } from '../core/hook';
 import { BlobReader, BlobWriter, HttpReader, TextReader, TextWriter, ZipReader, ZipWriter } from '@zip.js/zip.js';
+import { TILE_SIZE } from '../core/constants';
 
 let panelEl: HTMLDivElement | null = null;
 
@@ -42,7 +43,7 @@ export function createUI() {
         <div class="op-section">
           <div class="op-section-title">
             <div class="op-title-left">
-              <span class="op-title-text">Statistics</span>
+              <span class="op-title-text">Information</span>
             </div>
             <div class="op-title-right">
                 <button class="op-chevron" id="op-collapse-stats" title="Collapse/Expand">▾</button>
@@ -56,6 +57,10 @@ export function createUI() {
             <div class="op-row">
               <div>Level:</div>
               <div id="op-level-value">idk :&lt;</div>
+            </div>
+            <div class="op-row">
+              <div>Pixel:</div>
+              <div id="op-coord-display" style="cursor: pointer;">idk :&lt;</div>
             </div>
           </div>
         </div>
@@ -141,7 +146,7 @@ export function createUI() {
               <button class="op-button" id="op-open-cc" title="Match colors to Wplace palette">Color Match</button>
             </div>
 
-            <div class="op-row"><span class="op-muted" id="op-coord-display"></span></div>
+            <div class="op-row"><span class="op-muted" id="op-overlay-coord-display"></span></div>
           </div>
         </div>
       </div>
@@ -325,6 +330,21 @@ function addEventListeners(panel: HTMLDivElement) {
   $('op-refresh-btn').addEventListener('click', (e) => { e.stopPropagation(); location.reload(); });
   $('op-panel-toggle').addEventListener('click', (e) => { e.stopPropagation(); config.isPanelCollapsed = !config.isPanelCollapsed; saveConfig(['isPanelCollapsed']); updateUI(); });
 
+  $('op-coord-display').addEventListener('click', () => {
+    if (!menu.latLon) {
+      showToast('Select a pixel to copy its position.', 'error');
+      return;
+    }
+    const [ x, y ] = lonLatToPixel(menu.latLon[1], menu.latLon[0]);
+    navigator.clipboard.writeText(`  "x": ${x},\n  "y": ${y}`)
+      .then(() => {
+        showToast('Copied position to clipboard!', 'success');
+      })
+      .catch(x => {
+        showToast(`Failed to copy position to clipboard: ${x}`, 'error');
+      });
+  });
+
   panel.querySelectorAll('.op-tab-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
         const mode = btn.getAttribute('data-mode') as 'full' | 'dots' | 'none';
@@ -500,9 +520,9 @@ function updateEditorUI() {
     ( $('op-image-url') as HTMLInputElement ).value = '';
   }
 
-  const coordDisplay = $('op-coord-display');
-  if (coordDisplay) {
-    coordDisplay.textContent = `Ref: (${ov.x}, ${ov.y})`;
+  const overlayCoordDisplay = $('op-overlay-coord-display');
+  if (overlayCoordDisplay) {
+    overlayCoordDisplay.textContent = `pos: (${ov.x}, ${ov.y}) | (${Math.floor(ov.x / TILE_SIZE)}, ${Math.floor(ov.y / TILE_SIZE)}) | (${Math.floor(ov.x % TILE_SIZE)}, ${Math.floor(ov.y % TILE_SIZE)})`;
   }
 
   editorBody.style.display = config.collapseEditor ? 'none' : 'block';
@@ -569,6 +589,17 @@ export function updateUI() {
     }
     if (smallStats) {
       smallStats.textContent = '(offline or logged out)';
+    }
+  }
+
+  const coordDisplay = $('op-coord-display');
+  if (coordDisplay) {
+    if (menu.latLon) {
+      const [ x, y ] = lonLatToPixel(menu.latLon[1], menu.latLon[0]);
+      coordDisplay.textContent = `(${x}, ${y}) (${Math.floor(x / TILE_SIZE)}, ${Math.floor(y / TILE_SIZE)}) (${Math.floor(x % TILE_SIZE)}, ${Math.floor(y % TILE_SIZE)})`;
+    }
+    else {
+      coordDisplay.textContent = 'none';
     }
   }
 

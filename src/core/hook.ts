@@ -46,6 +46,7 @@ export function attachHook() {
         return proxy;
       menu = proxy;
       page._menu = proxy;
+      updateUI();
       return proxy;
     }
   };
