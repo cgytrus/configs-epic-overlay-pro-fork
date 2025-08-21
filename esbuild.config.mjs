@@ -2,6 +2,7 @@ import esbuild from 'esbuild';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEV = process.argv.includes('--watch');
@@ -12,7 +13,7 @@ const metaPath = resolve(__dirname, 'src', 'meta.js');
 const MetaBannerPlugin = {
   name: 'meta-banner',
   setup(build) {
-    build.onEnd(async (result) => {
+    build.onEnd(async () => {
       try {
         await mkdir(dirname(outFile), { recursive: true });
         const [meta, js] = await Promise.all([
@@ -20,9 +21,16 @@ const MetaBannerPlugin = {
           readFile(outFile, 'utf8'),
         ]);
         // Normalize CRLF and prepend
-        const banner = meta.trim() + '\n';
+        let banner = meta.trim() + '\n';
+        try {
+          banner = banner.replace('GIT', execSync('git describe --always --dirty').toString().trim());
+        }
+        catch (err) {
+          console.warn('[meta-banner] Failed to git describe:', err);
+        }
         await writeFile(outFile, (banner + js).replace(/\r\n/g, '\n'), 'utf8');
-      } catch (err) {
+      }
+      catch (err) {
         console.error('[meta-banner] Failed to prepend metadata:', err);
       }
     });
@@ -39,7 +47,7 @@ const buildOptions = {
   format: 'iife',
   sourcemap: false,
   logLevel: 'info',
-  plugins: [MetaBannerPlugin],
+  plugins: [ MetaBannerPlugin ],
 };
 
 async function buildOnce() {
