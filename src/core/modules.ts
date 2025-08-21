@@ -2,7 +2,7 @@ const chunks = [];
 const moduleSearches: { filter: (module: any) => boolean, resolve: (value: unknown) => any }[] = [];
 
 export const moduleFilters = {
-  'backend': (module: any) => module && findExport(module, prop => prop && prop.url && prop.url.includes && prop.url.includes('backend.wplace.live')),
+  'backend': (module: any) => module && findExport(module, prop => prop && prop.includes && prop.includes('backend.wplace.live')),
   'svelte': (module: any) => module && findExport(module, prop => prop && prop.toString && prop.toString().includes('window.__svelte'))
 }
 
