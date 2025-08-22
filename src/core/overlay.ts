@@ -120,6 +120,8 @@ export async function updateOverlays() {
       }
 
       const image = await buildOverlayData(ov, config.overlayStyle as 'full' | 'dots');
+      if (!image)
+        continue;
 
       if (existingSource) {
         existingSource.updateImage(image);

@@ -599,13 +599,13 @@ function updateEditorUI() {
 
   if (ov.image) {
     dropzoneImage.src = ov.image;
-    dropzoneImage.style.display = undefined;
+    dropzoneImage.style.display = null;
     dropzoneHint.style.display = 'none';
     ccRow.style.display = 'flex';
   }
   else {
     dropzoneImage.style.display = 'none';
-    dropzoneHint.style.display = undefined;
+    dropzoneHint.style.display = null;
     ccRow.style.display = 'none';
   }
 
@@ -631,11 +631,9 @@ function updateEditorUI() {
         }
         imagePixelCountCache.set(ov.image, count);
       }
-      else {
-        console.error('failed to count pixels :<');
-        showToast('failed to count pixels :<', 'error');
-      }
-      overlaySize.textContent = `size: ${img.width}x${img.height} (total px: ${img.width * img.height}, opaque px: ${count})`;
+      const w = img?.width || 0;
+      const h = img?.height || 0;
+      overlaySize.textContent = `size: ${w}x${h} (total px: ${w * h}, opaque px: ${count})`;
     });
   }
 
