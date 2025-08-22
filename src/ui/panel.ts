@@ -444,8 +444,6 @@ function addEventListeners(panel: HTMLDivElement) {
       }
       break;
     }
-    const url = ( $('op-image-url') as HTMLInputElement ).value.trim(); if (!url) { showToast('Enter an image link first.', 'error'); return; }
-    try { await setOverlayImageFromURL(ov, url); } catch (e) { console.error(e); showToast('Failed to fetch image.', 'error'); }
   });
 
   const dropzone = $('op-dropzone');
