@@ -186,7 +186,7 @@ function rebuildOverlayListUI() {
         pixelToLonLat(ov.x, ov.y),
         pixelToLonLat(ov.x + img.width, ov.y + img.height)
       ], {
-        padding: { top: 40, bottom: 12 + 133 + 40, right: 40, left: 40 }
+        padding: { top: 40, bottom: 12 + 133 + 40, right: 80, left: 80 }
       });
       camera.zoom = Math.max(camera.zoom, 11);
       camera.bearing = null;
