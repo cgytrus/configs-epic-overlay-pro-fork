@@ -818,9 +818,9 @@ export function buildRSModal() {
   window.addEventListener('resize', rs._resizeHandler);
 }
 
-export function openRSModal(overlay: any) {
+export function openRSModal(ov: OverlayItem) {
   if (!rs) return;
-  rs.ov = overlay;
+  rs.ov = ov;
 
   const img = new Image();
   img.onload = () => {
@@ -882,7 +882,7 @@ export function openRSModal(overlay: any) {
     };
     setFooterNow();
   };
-  img.src = overlay.imageBase64;
+  img.src = ov.image;
 }
 
 function closeRSModal() {

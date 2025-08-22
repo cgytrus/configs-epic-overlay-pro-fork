@@ -623,7 +623,7 @@ function updateEditorUI() {
       if (imagePixelCountCache.has(ov.image)) {
         count = imagePixelCountCache.get(ov.image);
       }
-      else {
+      else if (img) {
         const canvas = createCanvas(img.width, img.height);
         const ctx = canvas.getContext('2d', { willReadFrequently: true })! as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
         ctx.drawImage(img, 0, 0);
@@ -632,6 +632,10 @@ function updateEditorUI() {
           count += data.data[i * 4 + 3] >= 128 ? 1 : 0;
         }
         imagePixelCountCache.set(ov.image, count);
+      }
+      else {
+        console.error('failed to count pixels :<');
+        showToast('failed to count pixels :<', 'error');
       }
       overlaySize.textContent = `size: ${img.width}x${img.height} (total px: ${img.width * img.height}, opaque px: ${count})`;
     });

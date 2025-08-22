@@ -187,9 +187,9 @@ export function buildCCModal() {
   renderPaletteGrid();
 }
 
-export function openCCModal(overlay: any) {
+export function openCCModal(ov: OverlayItem) {
   if (!cc) return;
-  cc.overlay = overlay;
+  cc.overlay = ov;
 
   document.body.classList.add('op-scroll-lock');
 
@@ -217,7 +217,7 @@ export function openCCModal(overlay: any) {
     cc!.backdrop.classList.add('show');
     cc!.modal.style.display = 'flex';
   };
-  img.src = overlay.imageBase64;
+  img.src = ov.image;
 }
 
 function closeCCModal() {
