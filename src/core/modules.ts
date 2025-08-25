@@ -41,7 +41,11 @@ export function findExport(module: any, filter: (prop: any) => boolean) {
   return res ? module[res] : res;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+let loaded = false;
+function load() {
+  if (loaded)
+    return;
+  loaded = true;
   const links = document.head.getElementsByTagName('link');
   for (let i = 0; i < links.length; i++) {
     const link = links.item(i);
@@ -64,4 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-});
+}
+
+document.addEventListener('DOMContentLoaded', load);
+if (document.readyState !== 'loading')
+  load();
