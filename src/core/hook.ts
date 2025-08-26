@@ -105,27 +105,7 @@ export function attachHook() {
             pixel: [ number, number ]
           } = value.gm.latLonToTileAndPixel(...latLon, value.input.zoom);
           const canvasPos = value.getCanvasPos(value.gm.latLonToPixelsFloor(...latLon, value.input.zoom));
-
-          // update crosshair if tile updates while painting
-          let subscription: Subscription;
-          subscription = map.on('sourcedata', (x: any) => {
-            if (!x.coord || !x.tile)
-              return;
-            if (x.sourceId !== 'pixel-art-layer')
-              return;
-            if (x.coord.canonical.x != tile[0] || x.coord.canonical.y != tile[1])
-              return;
-            if (subscription) {
-              subscription.unsubscribe();
-            }
-            const canvas = value.canvases.get(canvasPos.key);
-            if (!canvas || !canvas.annotations.has(canvas.getPixelKey(canvasPos.innerPos.x, canvasPos.innerPos.y))) {
-              subscription.unsubscribe();
-              return;
-            }
-            value.remove(latLon);
-            value.place(latLon);
-          });
+          paintingAnnotations.push({ crosshair: value, latLon, tile, canvasPos });
 
           let useImg: typeof normal | typeof red = normal;
 
@@ -187,7 +167,27 @@ export function attachHook() {
   hookInstalled = true;
 }
 
+let paintingAnnotations = [];
 async function onMap() {
+  // update crosshair if tile updates while painting
+  map.on('sourcedata', (e: any) => {
+    if (!e.coord || !e.tile)
+      return;
+    if (e.sourceId !== 'pixel-art-layer')
+      return;
+    let length = paintingAnnotations.length;
+    while (--length >= 0) {
+      const { crosshair, latLon, tile, canvasPos } = paintingAnnotations.shift();
+      if (e.coord.canonical.x != tile[0] || e.coord.canonical.y != tile[1])
+        continue;
+      const canvas = crosshair.canvases.get(canvasPos.key);
+      if (!canvas || !canvas.annotations.has(canvas.getPixelKey(canvasPos.innerPos.x, canvasPos.innerPos.y)))
+        continue;
+      crosshair.remove(latLon);
+      crosshair.place(latLon);
+    }
+  });
+
   clearOverlayCache();
   await updateOverlays();
   updateUI();
