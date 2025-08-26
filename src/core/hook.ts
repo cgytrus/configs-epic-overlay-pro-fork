@@ -1,15 +1,20 @@
 /// <reference types="tampermonkey" />
 import { updateOverlays } from './overlay';
 import { updateUI } from '../ui/panel';
-import type { Map } from 'maplibre-gl';
-import { findExport, findModule, moduleFilters } from './modules';
+import type { Map, Subscription } from 'maplibre-gl';
+import { findExport, findModule, hook, moduleFilters } from './modules';
 import { clearOverlayCache } from './cache';
+import { createCanvas } from './canvas';
 
 let hookInstalled = false;
 
 const page: any = unsafeWindow;
 
-type Menu = { name: 'mainMenu' | 'paintingPixel' | 'selectHq' } | { name: 'pixelSelected', latLon: [ number, number ] };
+type Menu = { name: 'mainMenu' } |
+  { name: 'selectHq' } |
+  { name: 'paintingPixel' } |
+  { name: 'paintingPixel', clickedLatLon: [ number, number ] } |
+  { name: 'pixelSelected', latLon: [ number, number ] };
 function isMenu(x: any): x is Menu {
   const possibleNames = [ 'mainMenu', 'pixelSelected', 'paintingPixel', 'selectHq' ];
   return x && x.name && possibleNames.includes(x.name);
@@ -18,35 +23,29 @@ function isMenu(x: any): x is Menu {
 export let map: Map | null = null;
 export let user: any = null;
 export let menu: Menu = { name: 'mainMenu' };
+export let gm: any = null;
 
 export function attachHook() {
-  if (!map) {
-    page.PromiseOrig = page.Promise;
-    page.Promise = class extends page.PromiseOrig {
-      constructor(executor: any) {
-        super(executor);
-        if (!executor.toString().includes('maps.wplace.live'))
-          return;
-        this.then(async (x: Map) => {
-          map = x;
-          page._map = x;
-          clearOverlayCache();
-          await updateOverlays();
-          updateUI();
-        });
-        page.Promise = page.PromiseOrig;
-        page.PromiseOrig = undefined;
-      }
-    };
-  }
-
   if (hookInstalled)
     return;
 
-  page.ProxyOrig = page.Proxy;
-  page.Proxy = class {
+  hook(page, 'Promise', (orig, unhook) => class extends orig() {
+    constructor(executor: any) {
+      super(executor);
+      if (!executor.toString().includes('maps.wplace.live'))
+        return;
+      this.then(async (x: Map) => {
+        map = x;
+        page._map = x;
+        await onMap();
+      });
+      unhook();
+    }
+  });
+
+  hook(page, 'Proxy', orig => class {
     constructor(target: any, handler: any) {
-      const proxy = new page.ProxyOrig(target, handler);
+      const proxy = new (orig())(target, handler);
       if (!isMenu(target))
         return proxy;
       menu = proxy;
@@ -54,7 +53,22 @@ export function attachHook() {
       updateUI();
       return proxy;
     }
-  };
+  });
+
+  // unused rn but maybe ill switch to this later
+  hook(page, 'Map', (orig, unhook) => class extends orig() {
+    constructor(...args: any[]) {
+      super(...args);
+    }
+    set(key: any, value: any) {
+      if (value && value.gm && !gm) {
+        gm = value.gm;
+        page._gm = value.gm;
+        unhook();
+      }
+      return super.set(key, value);
+    }
+  });
 
   findModule(moduleFilters['backend']).then(x => {
     user = findExport(x, prop => prop && Object.getOwnPropertyNames(Object.getPrototypeOf(prop)).includes('cooldown'));
@@ -81,4 +95,10 @@ export function attachHook() {
   });
 
   hookInstalled = true;
+}
+
+async function onMap() {
+  clearOverlayCache();
+  await updateOverlays();
+  updateUI();
 }

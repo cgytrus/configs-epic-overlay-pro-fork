@@ -41,6 +41,23 @@ export function findExport(module: any, filter: (prop: any) => boolean) {
   return res ? module[res] : res;
 }
 
+type Detour<TObj, TKey extends keyof TObj> = (orig: () => TObj[TKey], unhook: () => void) => TObj[TKey];
+export function hook<TObj, TKey extends keyof TObj>(obj: TObj, original: TKey, detour: Detour<TObj, TKey>) {
+  const detourData = { next: obj[original], prev: undefined };
+  const origData = obj[original]['__detourData__'] || (obj[original]['__detourData__'] = { prev: undefined });
+  const unhook = () => {
+    detourData.next['__detourData__'].prev = detourData.prev;
+    if (detourData.prev)
+      detourData.prev['__detourData__'].next = detourData.next;
+    else
+      obj[original] = detourData.next;
+  };
+  origData.prev = detour(() => detourData.next, unhook);
+  origData.prev['__detourData__'] = detourData;
+  obj[original] = origData.prev;
+  return unhook;
+}
+
 let loaded = false;
 function load() {
   if (loaded)
