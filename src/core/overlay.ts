@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, canvasToDataURLSafe, transparentPattern } from './canvas';
+import { createCanvas, loadImage, canvasToDataURLSafe, transparentPattern, dotsPattern } from './canvas';
 import { MINIFY_SCALE, MAX_OVERLAY_DIM } from './constants';
 import { imageDecodeCache, tooLargeOverlays } from './cache';
 import { showToast } from './toast';
@@ -61,28 +61,21 @@ export async function buildOverlayData(
   const imgCtx = imgCanvas.getContext('2d', { willReadFrequently: true })! as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
   imgCtx.imageSmoothingEnabled = false;
   imgCtx.fillStyle = transparentPattern;
-  imgCtx.fillRect(0, 0, wImg * 2, hImg * 2);
-  imgCtx.drawImage(img, 0, 0, wImg * 2, hImg * 2);
+  imgCtx.fillRect(0, 0, imgCanvas.width, imgCanvas.height);
+  imgCtx.drawImage(img, 0, 0, imgCanvas.width, imgCanvas.height);
 
   if (style == 'full')
     return { url: await canvasToDataURLSafe(imgCanvas), coordinates };
 
   switch (style) {
     case 'dots': {
-      const scale = MINIFY_SCALE;
-      const wScaled = wImg * scale;
-      const hScaled = hImg * scale;
-
-      const canvas = createCanvas(wScaled * 2, hScaled * 2);
+      const canvas = createCanvas(imgCanvas.width * MINIFY_SCALE, imgCanvas.height * MINIFY_SCALE);
       const ctx = canvas.getContext('2d', { willReadFrequently: true })! as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
       ctx.imageSmoothingEnabled = false;
-
-      const center = Math.floor((scale - 1) / 2);
-      for (let y = 0; y < hImg; y++) {
-        for (let x = 0; x < wImg; x++) {
-          ctx.drawImage(imgCanvas, x * 2, y * 2, 2, 2, (x * scale + center) * 2, (y * scale + center) * 2, 2, 2);
-        }
-      }
+      ctx.fillStyle = dotsPattern;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.drawImage(imgCanvas, 0, 0, imgCanvas.width, imgCanvas.height, 0, 0, canvas.width, canvas.height);
 
       return { url: await canvasToDataURLSafe(canvas), coordinates };
     }

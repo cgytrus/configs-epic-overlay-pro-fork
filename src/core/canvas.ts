@@ -1,3 +1,5 @@
+import { MINIFY_SCALE } from "./constants";
+
 export function createCanvas(w: number, h: number): OffscreenCanvas | HTMLCanvasElement {
   if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
   const c = document.createElement('canvas');
@@ -78,5 +80,13 @@ export const transparentPattern = (() => {
   ctx.fillStyle = '#5050504f';
   ctx.fillRect(0, 1, 1, 1);
   ctx.fillRect(1, 0, 1, 1);
+  return ctx.createPattern(canvas, 'repeat');
+})();
+
+export const dotsPattern = (() => {
+  const canvas = createCanvas(2 * MINIFY_SCALE, 2 * MINIFY_SCALE);
+  const ctx = canvas.getContext('2d')! as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(2, 2, 2, 2);
   return ctx.createPattern(canvas, 'repeat');
 })();
