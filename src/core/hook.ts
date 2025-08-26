@@ -98,14 +98,16 @@ export function attachHook() {
       red['naturalWidth'] = red.width;
       red['naturalHeight'] = red.height;
 
-      hook(value, 'place', orig => (latLon: [ number, number ]) => {
+      hook(value, 'place', orig => (latLon: [ number, number ], current: [ number, number, number, number ]) => {
         try {
           const { tile, pixel }: {
             tile: [ number, number ],
             pixel: [ number, number ]
           } = value.gm.latLonToTileAndPixel(...latLon, value.input.zoom);
           const canvasPos = value.getCanvasPos(value.gm.latLonToPixelsFloor(...latLon, value.input.zoom));
-          paintingAnnotations.push({ crosshair: value, latLon, tile, canvasPos });
+          if (!paintingAnnotations.has(tile[0] * 100000 + tile[1]))
+            paintingAnnotations.set(tile[0] * 100000 + tile[1], []);
+          paintingAnnotations.get(tile[0] * 100000 + tile[1]).push({ crosshair: value, latLon, pixel, canvasPos });
 
           let useImg: typeof normal | typeof red = normal;
 
@@ -117,7 +119,8 @@ export function attachHook() {
           const key = cache.getVisibleCoordinates().find(x => x.canonical.x == tile[0] && x.canonical.y == tile[1])?.key;
           if (painted && key) {
             const tile = cache.getTileByID(key);
-            const current = pickColorOnMapTexture(tile.texture.texture, ...pixel);
+            if (!current)
+              current = pickColorsOnMapTexture(tile.texture.texture, [ { x: pixel[0], y: pixel[1] } ])[0];
             if (current && current.every((x, i) => x == painted[i])) {
               useImg = red;
             }
@@ -167,7 +170,7 @@ export function attachHook() {
   hookInstalled = true;
 }
 
-let paintingAnnotations = [];
+const paintingAnnotations = new window.Map<number, any[]>();
 async function onMap() {
   // update crosshair if tile updates while painting
   map.on('sourcedata', (e: any) => {
@@ -175,16 +178,27 @@ async function onMap() {
       return;
     if (e.sourceId !== 'pixel-art-layer')
       return;
-    let length = paintingAnnotations.length;
-    while (--length >= 0) {
-      const { crosshair, latLon, tile, canvasPos } = paintingAnnotations.shift();
+    for (const [ key, annotations ] of paintingAnnotations) {
+      const tile = [ Math.floor(key / 100000), key % 100000 ];
       if (e.coord.canonical.x != tile[0] || e.coord.canonical.y != tile[1])
         continue;
-      const canvas = crosshair.canvases.get(canvasPos.key);
-      if (!canvas || !canvas.annotations.has(canvas.getPixelKey(canvasPos.innerPos.x, canvasPos.innerPos.y)))
+      const cache = map.style.sourceCaches['pixel-art-layer'];
+      if (!cache)
         continue;
-      crosshair.remove(latLon);
-      crosshair.place(latLon);
+      const cacheKey = cache.getVisibleCoordinates().find(x => x.canonical.x == tile[0] && x.canonical.y == tile[1])?.key;
+      if (!key)
+        continue;
+      const tileTile = cache.getTileByID(cacheKey);
+      const current = pickColorsOnMapTexture(tileTile.texture.texture, annotations.map(x => ({ x: x.pixel[0], y: x.pixel[1] })));
+      const length = annotations.length;
+      for (let i = 0; i < length; i++) {
+        const { crosshair, latLon, canvasPos } = annotations.shift();
+        const canvas = crosshair.canvases.get(canvasPos.key);
+        if (!canvas || !canvas.annotations.has(canvas.getPixelKey(canvasPos.innerPos.x, canvasPos.innerPos.y)))
+          continue;
+        crosshair.remove(latLon);
+        crosshair.place(latLon, current[i]);
+      }
     }
   });
 
@@ -194,7 +208,9 @@ async function onMap() {
 }
 
 let fbo: WebGLFramebuffer | undefined;
-function pickColorOnMapTexture(texture: WebGLTexture, x: number, y: number) {
+function pickColorsOnMapTexture(texture: WebGLTexture, points: { x: number, y: number }[]) {
+  if (points.length === 0)
+    return [];
   const gl = map.painter.context.gl;
   if (!fbo) {
     fbo = gl.createFramebuffer();
@@ -206,10 +222,31 @@ function pickColorOnMapTexture(texture: WebGLTexture, x: number, y: number) {
   if (status != gl.FRAMEBUFFER_COMPLETE) {
     console.error('framebuffer incomplete', status);
     gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo);
-    return null;
+    return [];
   }
-  const data = new Uint8Array(4);
-  gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  let minX = points[0].x;
+  let maxX = points[0].x;
+  let minY = points[0].y;
+  let maxY = points[0].y;
+  for (const point of points) {
+    if (point.x < minX)
+      minX = point.x;
+    if (point.x > maxX)
+      maxX = point.x;
+    if (point.y < minY)
+      minY = point.y;
+    if (point.y > maxY)
+      maxY = point.y;
+  }
+  const w = maxX - minX + 1;
+  const h = maxY - minY + 1;
+  const data = new Uint8Array(w * h * 4);
+  gl.readPixels(minX, minY, w, h, gl.RGBA, gl.UNSIGNED_BYTE, data);
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo);
-  return data;
+  let res = [];
+  for (const point of points) {
+    const index = ((point.y - minY) * w + (point.x - minX)) * 4;
+    res.push([ data[index + 0], data[index + 1], data[index + 2], data[index + 3] ]);
+  }
+  return res;
 };
