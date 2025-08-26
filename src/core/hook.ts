@@ -1,7 +1,7 @@
 /// <reference types="tampermonkey" />
 import { updateOverlays } from './overlay';
 import { updateUI } from '../ui/panel';
-import type { Map, Subscription } from 'maplibre-gl';
+import type { Map } from 'maplibre-gl';
 import { findExport, findModule, hook, moduleFilters } from './modules';
 import { clearOverlayCache } from './cache';
 import { createCanvas } from './canvas';
