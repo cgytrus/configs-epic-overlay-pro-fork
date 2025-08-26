@@ -5,6 +5,8 @@ import type { Map } from 'maplibre-gl';
 import { findExport, findModule, hook, moduleFilters } from './modules';
 import { clearOverlayCache } from './cache';
 import { createCanvas } from './canvas';
+//import { lonLatToPixel } from './util';
+//import { TILE_SIZE } from './constants';
 
 let hookInstalled = false;
 
@@ -172,6 +174,54 @@ export function attachHook() {
 
 const paintingAnnotations = new window.Map<number, any[]>();
 async function onMap() {
+  //const refreshTilesOrig = map.refreshTiles;
+  //map.refreshTiles = (sourceId, tileIds) => {
+  //  if (sourceId !== 'pixel-art-layer')
+  //    return refreshTilesOrig.call(map, sourceId, tileIds);
+  //  //const cache = map.style.sourceCaches['pixel-art-layer'];
+  //  //if (!cache)
+  //  //  return refreshTilesOrig.call(map, sourceId, tileIds);
+  //  //const center = map.getBounds().getCenter();
+  //  //let [ x, y ] = lonLatToPixel(center.lng, center.lat);
+  //  //x = Math.floor(x / TILE_SIZE);
+  //  //y = Math.floor(y / TILE_SIZE);
+  //  //const paused = cache._paused;
+  //  //cache._paused = false;
+  //  const zoom = map.getZoom();
+  //  map.setZoom(Math.max(zoom, 11));
+  //  refreshTilesOrig.call(map, sourceId, tileIds);
+  //  map.setZoom(zoom);
+  //  //if (paused)
+  //  //  cache.pause();
+  //};
+
+  //const addSourceOrig = map.addSource;
+  //map.addSource = (id, source) => {
+  //  if (id === 'pixel-art-layer' && source.type === 'raster')
+  //    source.tileSize = 64;
+  //  const ret = addSourceOrig.call(map, id, source);
+  //  if (id === 'pixel-art-layer') {
+  //    const updateOrig = map.style.sourceCaches['pixel-art-layer'].update;
+  //    map.style.sourceCaches['pixel-art-layer'].update = (transform, terrain) => {
+  //      const t = transform.clone();
+  //      t.setZoom(Math.max(t.zoom, 11));
+  //      return updateOrig.call(map.style.sourceCaches['pixel-art-layer'], t, terrain);
+  //    };
+  //  }
+  //  return ret;
+  //};
+
+  //map.on('zoom', () => {
+  //  if (!map.style.sourceCaches['pixel-art-layer'])
+  //    return;
+  //  if (map.getZoom() < 10.6) {
+  //    map.style.sourceCaches['pixel-art-layer'].pause();
+  //  }
+  //  else {
+  //    map.style.sourceCaches['pixel-art-layer'].resume();
+  //  }
+  //});
+
   // update crosshair if tile updates while painting
   map.on('sourcedata', (e: any) => {
     if (!e.coord || !e.tile)
@@ -189,6 +239,8 @@ async function onMap() {
       if (!key)
         continue;
       const tileTile = cache.getTileByID(cacheKey);
+      if (!tileTile || !tileTile.texture || !tileTile.texture.texture)
+        continue;
       const current = pickColorsOnMapTexture(tileTile.texture.texture, annotations.map(x => ({ x: x.pixel[0], y: x.pixel[1] })));
       const length = annotations.length;
       for (let i = 0; i < length; i++) {
