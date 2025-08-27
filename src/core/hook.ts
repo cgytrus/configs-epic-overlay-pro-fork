@@ -219,7 +219,7 @@ async function onMap() {
 
   // update crosshair if tile updates while painting
   map.on('sourcedata', (e: any) => {
-    if (!e.coord || !e.tile)
+    if (!e.coord || !e.tile || !e.sourceId)
       return;
     if (e.sourceId !== 'pixel-art-layer')
       return;
@@ -228,7 +228,7 @@ async function onMap() {
       if (e.coord.canonical.x != tile.x || e.coord.canonical.y != tile.y)
         continue;
 
-      const previewCanvas: HTMLCanvasElement = paintPreviewTiles.get(`${tile.x},${tile.y}`).canvas;
+      const previewCanvas: HTMLCanvasElement = paintPreviewTiles.get(`${tile.x},${tile.y}`)?.canvas;
       const painted = pickColorsOnCanvas(previewCanvas, annotations.map(x => ({ x: x.pixel[0], y: previewCanvas.height - x.pixel[1] - 1 })));
       const current = pickColorsOnMapLayer('pixel-art-layer', tile, annotations.map(x => ({ x: x.pixel[0], y: x.pixel[1] })));
 
