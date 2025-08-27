@@ -72,7 +72,6 @@ export function attachHook() {
     }
   });
 
-  let paintPreviewTiles: any;
   hook(page, 'Map', orig => class extends orig() {
     constructor(...args: any[]) {
       super(...args);
@@ -100,7 +99,7 @@ export function attachHook() {
       red['naturalWidth'] = red.width;
       red['naturalHeight'] = red.height;
 
-      hook(value, 'place', orig => (latLon: [ number, number ], current: [ number, number, number, number ]) => {
+      hook(value, 'place', orig => (latLon: [ number, number ], custom: { painted: [ number, number, number, number ], current: [ number, number, number, number ] }) => {
         try {
           const { tile, pixel }: {
             tile: [ number, number ],
@@ -113,19 +112,14 @@ export function attachHook() {
 
           let useImg: typeof normal | typeof red = normal;
 
-          const previewCanvas: HTMLCanvasElement = paintPreviewTiles.get(`${tile[0]},${tile[1]}`).canvas;
-          const previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true })!;
-          const painted = previewCtx.getImageData(pixel[0], previewCanvas.height - pixel[1] - 1, 1, 1).data;
+          const painted = custom && custom.painted || (() => {
+            const previewCanvas: HTMLCanvasElement = paintPreviewTiles.get(`${tile[0]},${tile[1]}`).canvas;
+            return pickColorsOnCanvas(previewCanvas, [ { x: pixel[0], y: previewCanvas.height - pixel[1] - 1 } ])[0];
+          })();
+          const current = custom && custom.current || pickColorsOnMapLayer('pixel-art-layer', { x: tile[0], y: tile[1] }, [ { x: pixel[0], y: pixel[1] } ])[0];
 
-          const cache = map.style.sourceCaches['pixel-art-layer'];
-          const key = cache.getVisibleCoordinates().find(x => x.canonical.x == tile[0] && x.canonical.y == tile[1])?.key;
-          if (painted && key) {
-            const tile = cache.getTileByID(key);
-            if (!current)
-              current = pickColorsOnMapTexture(tile.texture.texture, [ { x: pixel[0], y: pixel[1] } ])[0];
-            if (current && current.every((x, i) => x == painted[i])) {
-              useImg = red;
-            }
+          if (painted && current && current.every((x, i) => x == painted[i])) {
+            useImg = red;
           }
 
           if (value.input.img != useImg) {
@@ -172,6 +166,7 @@ export function attachHook() {
   hookInstalled = true;
 }
 
+let paintPreviewTiles: any;
 const paintingAnnotations = new window.Map<number, any[]>();
 async function onMap() {
   //const refreshTilesOrig = map.refreshTiles;
@@ -229,19 +224,14 @@ async function onMap() {
     if (e.sourceId !== 'pixel-art-layer')
       return;
     for (const [ key, annotations ] of paintingAnnotations) {
-      const tile = [ Math.floor(key / 100000), key % 100000 ];
-      if (e.coord.canonical.x != tile[0] || e.coord.canonical.y != tile[1])
+      const tile = { x: Math.floor(key / 100000), y: key % 100000 };
+      if (e.coord.canonical.x != tile.x || e.coord.canonical.y != tile.y)
         continue;
-      const cache = map.style.sourceCaches['pixel-art-layer'];
-      if (!cache)
-        continue;
-      const cacheKey = cache.getVisibleCoordinates().find(x => x.canonical.x == tile[0] && x.canonical.y == tile[1])?.key;
-      if (!key)
-        continue;
-      const tileTile = cache.getTileByID(cacheKey);
-      if (!tileTile || !tileTile.texture || !tileTile.texture.texture)
-        continue;
-      const current = pickColorsOnMapTexture(tileTile.texture.texture, annotations.map(x => ({ x: x.pixel[0], y: x.pixel[1] })));
+
+      const previewCanvas: HTMLCanvasElement = paintPreviewTiles.get(`${tile.x},${tile.y}`).canvas;
+      const painted = pickColorsOnCanvas(previewCanvas, annotations.map(x => ({ x: x.pixel[0], y: previewCanvas.height - x.pixel[1] - 1 })));
+      const current = pickColorsOnMapLayer('pixel-art-layer', tile, annotations.map(x => ({ x: x.pixel[0], y: x.pixel[1] })));
+
       const length = annotations.length;
       for (let i = 0; i < length; i++) {
         const { crosshair, latLon, canvasPos } = annotations.shift();
@@ -249,7 +239,7 @@ async function onMap() {
         if (!canvas || !canvas.annotations.has(canvas.getPixelKey(canvasPos.innerPos.x, canvasPos.innerPos.y)))
           continue;
         crosshair.remove(latLon);
-        crosshair.place(latLon, current[i]);
+        crosshair.place(latLon, { painted: painted.length && painted[i], current: current.length && current[i] });
       }
     }
   });
@@ -260,7 +250,7 @@ async function onMap() {
 }
 
 let fbo: WebGLFramebuffer | undefined;
-function pickColorsOnMapTexture(texture: WebGLTexture, points: { x: number, y: number }[]) {
+function pickColorsOnMapTexture(texture: WebGLTexture, points: { x: number, y: number }[]): [ number, number, number, number ][] {
   if (points.length === 0)
     return [];
   const gl = map.painter.context.gl;
@@ -302,3 +292,51 @@ function pickColorsOnMapTexture(texture: WebGLTexture, points: { x: number, y: n
   }
   return res;
 };
+
+function pickColorsOnMapLayer(id: string, tile: { x: number, y: number }, points: { x: number, y: number }[]): [ number, number, number, number ][] {
+  if (!map || !map.style || !map.style.sourceCaches)
+    return [];
+  const cache = map.style.sourceCaches[id];
+  if (!cache)
+    return [];
+  const cacheKey = cache.getVisibleCoordinates().find(x => x.canonical.x == tile.x && x.canonical.y == tile.y)?.key;
+  if (!cacheKey)
+    return [];
+  const tileTile = cache.getTileByID(cacheKey);
+  if (!tileTile || !tileTile.texture || !tileTile.texture.texture)
+    return [];
+  return pickColorsOnMapTexture(tileTile.texture.texture, points);
+}
+
+function pickColorsOnCanvas(canvas: OffscreenCanvas | HTMLCanvasElement, points: { x: number, y: number }[]): [ number, number, number, number ][] {
+  if (points.length === 0)
+    return [];
+  if (!canvas)
+    return [];
+  let minX = points[0].x;
+  let maxX = points[0].x;
+  let minY = points[0].y;
+  let maxY = points[0].y;
+  for (const point of points) {
+    if (point.x < minX)
+      minX = point.x;
+    if (point.x > maxX)
+      maxX = point.x;
+    if (point.y < minY)
+      minY = point.y;
+    if (point.y > maxY)
+      maxY = point.y;
+  }
+  const w = maxX - minX + 1;
+  const h = maxY - minY + 1;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true }) as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
+  if (!ctx)
+    return [];
+  const data = ctx.getImageData(minX, minY, w, h).data;
+  let res = [];
+  for (const point of points) {
+    const index = ((point.y - minY) * w + (point.x - minX)) * 4;
+    res.push([ data[index + 0], data[index + 1], data[index + 2], data[index + 3] ]);
+  }
+  return res;
+}
