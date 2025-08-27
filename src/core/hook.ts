@@ -114,11 +114,13 @@ export function attachHook() {
 
           const painted = custom && custom.painted || (() => {
             const previewCanvas: HTMLCanvasElement = paintPreviewTiles.get(`${tile[0]},${tile[1]}`).canvas;
+            if (!previewCanvas)
+              return [];
             return pickColorsOnCanvas(previewCanvas, [ { x: pixel[0], y: previewCanvas.height - pixel[1] - 1 } ])[0];
           })();
           const current = custom && custom.current || pickColorsOnMapLayer('pixel-art-layer', { x: tile[0], y: tile[1] }, [ { x: pixel[0], y: pixel[1] } ])[0];
 
-          if (painted && current && current.every((x, i) => x == painted[i])) {
+          if (painted && painted.length == 4 && current && current.length == 4 && current.every((x, i) => x == painted[i])) {
             useImg = red;
           }
 
@@ -229,7 +231,7 @@ async function onMap() {
         continue;
 
       const previewCanvas: HTMLCanvasElement = paintPreviewTiles.get(`${tile.x},${tile.y}`)?.canvas;
-      const painted = pickColorsOnCanvas(previewCanvas, annotations.map(x => ({ x: x.pixel[0], y: previewCanvas.height - x.pixel[1] - 1 })));
+      const painted = previewCanvas ? pickColorsOnCanvas(previewCanvas, annotations.map(x => ({ x: x.pixel[0], y: previewCanvas.height - x.pixel[1] - 1 }))) : [];
       const current = pickColorsOnMapLayer('pixel-art-layer', tile, annotations.map(x => ({ x: x.pixel[0], y: x.pixel[1] })));
 
       const length = annotations.length;
