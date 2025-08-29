@@ -57,7 +57,9 @@ export async function buildOverlayData(
     pixelToLonLat(ov.x, ov.y + hImg),
   ];
 
-  const imgCanvas = createCanvas(wImg * 2, hImg * 2);
+  const isPowerOfTwo = (n: number) => (n & (n - 1)) === 0;
+  const scale = (style === 'full' && isPowerOfTwo(wImg) && isPowerOfTwo(hImg)) ? 3 : 2;
+  const imgCanvas = createCanvas(wImg * scale, hImg * scale);
   const imgCtx = imgCanvas.getContext('2d', { willReadFrequently: true })! as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
   imgCtx.imageSmoothingEnabled = false;
   imgCtx.fillStyle = transparentPattern;
