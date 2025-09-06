@@ -31,16 +31,21 @@ export function attachHook() {
   if (hookInstalled)
     return;
 
-  hook(page, 'URL', (orig, unhook) => class extends orig() {
-    constructor(...url: any[]) {
-      if (url.length >= 1 && url[0].includes && url[0].includes('pawtect_wasm_bg')) {
-        // if youre a wplace dev and you find this please help me make my overlay not trigger pawtect :rivplead:
-        // it's triggered by data URIs but all im fetching is png images
-        url[0] = 'https://i.hate.bots.too.and.i.love.paws.but.not.when.they.break.my.harmless.overlay.colon-less-than';
-        unhook();
-      }
-      super(...url);
+  // if youre a wplace dev and you find this please help me make my overlay not trigger pawtect :rivplead:
+  // it's triggered by data URIs but all im fetching is png images
+  hook(page.Object, 'assign', (orig, unhook) => (target: any, source: any) => {
+    if (target === page && source.fetch) {
+      const fetchOrig = page.fetch;
+      hook(source, 'fetch', orig => (a: any, b: any) => {
+        const url = a instanceof Request ? a.url : a;
+        // bypass pawtect for data URIs that fetch an image
+        if (url && url.startsWith && url.startsWith('data:image/png'))
+          return fetchOrig(a, b);
+        return orig()(a, b);
+      });
+      unhook();
     }
+    return orig()(target, source);
   });
 
   hook(page, 'Promise', (orig, unhook) => class extends orig() {
