@@ -67,7 +67,7 @@ export async function buildOverlayData(
   imgCtx.drawImage(img, 0, 0, imgCanvas.width, imgCanvas.height);
 
   if (style == 'full')
-    return { url: await canvasToDataURLSafe(imgCanvas), coordinates };
+    return { url: `ovp-${await canvasToDataURLSafe(imgCanvas)}`, coordinates };
 
   switch (style) {
     case 'dots': {
@@ -79,7 +79,7 @@ export async function buildOverlayData(
       ctx.globalCompositeOperation = 'source-in';
       ctx.drawImage(imgCanvas, 0, 0, imgCanvas.width, imgCanvas.height, 0, 0, canvas.width, canvas.height);
 
-      return { url: await canvasToDataURLSafe(canvas), coordinates };
+      return { url: `ovp-${await canvasToDataURLSafe(canvas)}`, coordinates };
     }
   }
 }
