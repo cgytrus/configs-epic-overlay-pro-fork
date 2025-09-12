@@ -37,12 +37,10 @@ export function attachHook() {
     if (target === page && source.fetch) {
       const fetchOrig = page.fetch;
       hook(source, 'fetch', orig => (a: any, b: any) => {
-        let url = a instanceof Request ? a.url : a;
+        const url = a instanceof Request ? a.url : a;
         // bypass pawtect for data URIs that fetch an image
-        if (url && url.startsWith('ovp-data:image/png')) {
-          url = url.substring('ovp-'.length);
-          return fetchOrig(a instanceof Request ? new Request(url, a) : url, b);
-        }
+        if (url && url.startsWith && url.startsWith('data:image/png'))
+          return fetchOrig(a, b);
         return orig()(a, b);
       });
       unhook();
