@@ -51,7 +51,7 @@ export function attachHook() {
   hook(page, 'Promise', (orig, unhook) => class extends orig() {
     constructor(executor: any) {
       super(executor);
-      if (!executor.toString().includes('maps.wplace.live'))
+      if (!executor.toString().includes('"waterway_tunnel"'))
         return;
       this.then(async (x: Map) => {
         map = x;
